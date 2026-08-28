@@ -1,3 +1,15 @@
+# 🚀 QUICK START: How to Run the App
+
+If you received this project as a ZIP file, follow these simple steps to start the application:
+
+1. **Extract the ZIP file** to a folder on your computer.
+2. Open the extracted folder (`Inductionfurnace-main`).
+3. Double-click the **`run_web.bat`** file.
+4. A command prompt will open, install any missing dependencies, and start the local server.
+5. Your default web browser will automatically open the **SmartMelt Studio Web App** (at `http://localhost:8765`).
+
+---
+
 # SmartMelt Studio — Pixel-Matched Streamlit Release
 
 For the exact `run_gui.py` browser replica, start with **`README_STREAMLIT_EXACT.md`**. The current release includes the corrected dynamic liquid/slag furnace view and non-blocking live operation.
