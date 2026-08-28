@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmartMelt — Operator Console v2</title>
+<style>
+  /* Webfonts if online; every stack falls back to shop-PC system faces. */
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Devanagari:wght@400;500&display=swap');
+
+  :root{
+    --bg-deep:#0a0d10; --bg-panel:#12171b; --bg-raised:#182027; --bg-input:#0e1317;
+    --line:#232c33; --line-soft:#1a2127;
+    --text:#e9edf0; --text-mut:#7c8994; --text-dim:#4d5860;
+    --molten:#ff6a34; --molten-hi:#ffd166; --molten-dim:#7a3a20;
+    --steel:#4fa8d8; --steel-dim:#245066;
+    --green:#33d17a; --green-dim:#12301f;
+    --amber:#f0a83c; --amber-dim:#33250e;
+    --red:#e5484d;   --red-dim:#331214;
+    --grey-verd:#39434c;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+    --sans:'IBM Plex Sans','IBM Plex Sans Devanagari',system-ui,'Segoe UI',sans-serif;
+    --disp:'Oswald',var(--sans);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg-deep);color:var(--text);font-family:var(--sans)}
+  body{padding:14px;min-height:100vh}
+  ::selection{background:var(--molten);color:#100a06}
+  button{font-family:inherit;color:inherit;cursor:pointer}
+  input,select{font-family:var(--mono);color:var(--text);background:var(--bg-input);
+    border:1px solid var(--line);border-radius:4px;padding:5px 7px;font-size:13px}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--steel);outline-offset:1px}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
+
+  .console{max-width:1440px;margin:0 auto}
+
+  /* ── header ───────────────────────────────────────────────────────── */
+  header{display:flex;align-items:center;gap:16px;padding:10px 14px;
+    background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
+  .brand{font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.06em}
+  .brand em{color:var(--molten);font-style:normal}
+  .hchip{font-family:var(--mono);font-size:12px;color:var(--text-mut);border:1px solid var(--line);
+    border-radius:4px;padding:4px 8px;white-space:nowrap}
+  .hchip b{color:var(--text);font-weight:600}
+  .spacer{flex:1}
+  .langbtn{background:var(--bg-raised);border:1px solid var(--line);border-radius:5px;
+    padding:6px 12px;font-size:13px;font-weight:600}
+  .langbtn.active{border-color:var(--molten);color:var(--molten-hi)}
+
+  /* ── tabs ─────────────────────────────────────────────────────────── */
+  nav.tabs{display:flex;gap:6px;margin-bottom:12px}
+  nav.tabs button{background:var(--bg-panel);border:1px solid var(--line);border-bottom-width:3px;
+    border-radius:7px;padding:9px 20px;font-size:14px;font-weight:600;color:var(--text-mut)}
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--molten)}
+  nav.tabs button .hind{display:block;font-size:10.5px;font-weight:400;color:var(--text-dim)}
+  .tabpane{display:none}
+  .tabpane.active{display:block}
+
+  /* ── panels & layout ─────────────────────────────────────────────── */
+  .grid-op{display:grid;grid-template-columns:minmax(430px,1.15fr) minmax(360px,1fr);gap:12px}
+  @media(max-width:1050px){.grid-op{grid-template-columns:1fr}}
+  .panel{background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+  .panel h2{margin:0 0 10px;font-family:var(--disp);font-weight:600;font-size:13px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--text-mut)}
+  .panel h2 .hind{font-weight:400;letter-spacing:0;color:var(--text-dim);margin-left:8px;text-transform:none}
+
+  /* ── live numerals ────────────────────────────────────────────────── */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+  .kpi{background:var(--bg-raised);border:1px solid var(--line-soft);border-radius:6px;padding:8px 10px}
+  .kpi .lab{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut)}
+  .kpi .lab .hind{display:block;font-size:11px;text-transform:none;letter-spacing:0;color:var(--text-dim)}
+  .kpi .val{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+  .kpi .sub{font-family:var(--mono);font-size:11px;color:var(--text-mut)}
+  .kpi.temp .val{background:linear-gradient(90deg,var(--molten),var(--molten-hi));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .kpi .sigma{color:var(--steel);font-size:12px}
+
+  /* ── signature: furnace cross-section ────────────────────────────── */
+  .furnace-wrap{display:flex;gap:14px;align-items:stretch}
+  .furnace{position:relative;width:120px;min-height:190px;flex:0 0 auto;
+    border:2px solid var(--line);border-top:none;border-radius:0 0 26px 26px;
+    background:linear-gradient(180deg,#10151a, #0c1013);overflow:hidden}
+  .furnace .melt{position:absolute;left:0;right:0;bottom:0;height:0%;
+    background:linear-gradient(180deg,var(--molten-hi),var(--molten) 45%,#b23c12);
+    box-shadow:0 0 26px 4px rgba(255,106,52,.45);transition:height .5s linear}
+  .furnace .scrap{position:absolute;left:0;right:0;top:0;height:0%;
+    background:repeating-linear-gradient(135deg,#2b333b 0 7px,#20262d 7px 14px);
+    border-bottom:1px solid #39434c;transition:height .5s linear}
+  .furnace .hotface{position:absolute;top:6px;right:5px;font-family:var(--mono);font-size:10px;
+    color:var(--text-mut);writing-mode:vertical-rl}
+  .furnace .coil{position:absolute;top:0;bottom:0;left:-2px;width:4px;
+    background:repeating-linear-gradient(180deg,var(--steel-dim) 0 8px,transparent 8px 15px)}
+  .furnace .coil.r{left:auto;right:-2px}
+  .melt-legend{font-size:11.5px;color:var(--text-mut);line-height:1.9}
+  .melt-legend b{font-family:var(--mono);color:var(--text)}
+  .disschips{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:20px;
+    padding:3px 9px;color:var(--text-mut);background:var(--bg-raised)}
+  .chip .pct{color:var(--molten-hi)}
+
+  /* ── trend canvas ─────────────────────────────────────────────────── */
+  canvas.trend{width:100%;height:220px;background:var(--bg-raised);
+    border:1px solid var(--line-soft);border-radius:6px;display:block}
+  canvas.tj{height:250px}
+  .trajgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:1050px){.trajgrid{grid-template-columns:1fr}}
+
+  /* ── advisory verdict cards ──────────────────────────────────────── */
+  .verdicts{display:flex;flex-direction:column;gap:8px}
+  .verdict{display:grid;grid-template-columns:52px 1fr;gap:10px;border:1px solid var(--line);
+    border-left-width:6px;border-radius:6px;padding:9px 11px;background:var(--bg-raised)}
+  .verdict .badge{font-family:var(--mono);font-weight:600;font-size:12px;align-self:center;text-align:center;
+    border-radius:4px;padding:6px 0}
+  .verdict.ok{border-left-color:var(--green)} .verdict.ok .badge{background:var(--green-dim);color:var(--green)}
+  .verdict.warn{border-left-color:var(--amber)} .verdict.warn .badge{background:var(--amber-dim);color:var(--amber)}
+  .verdict.alarm{border-left-color:var(--red)} .verdict.alarm .badge{background:var(--red-dim);color:var(--red)}
+  .verdict.susp{border-left-color:var(--grey-verd)} .verdict.susp .badge{background:#20262c;color:var(--text-mut)}
+  .verdict .vt{font-size:13.5px;font-weight:600}
+  .verdict .ven{font-size:12.5px;color:var(--text-mut);margin-top:1px}
+  .verdict .vhi{font-size:12.5px;color:var(--text-dim);margin-top:1px}
+  .driftbar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-mut);
+    border:1px dashed var(--line);border-radius:6px;padding:7px 10px;margin-top:8px}
+  .driftbar .dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+  .driftbar.on .dot{background:var(--red);animation:blink 1.1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ── operator actions ─────────────────────────────────────────────── */
+  .taps{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+  .taps button{background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;
+    padding:11px 4px;font-family:var(--mono);font-size:13px;font-weight:600}
+  .taps button.sel{border-color:var(--molten);color:var(--molten-hi);
+    box-shadow:inset 0 0 0 1px var(--molten)}
+  .taps button.rec{border-color:var(--steel)}
+  .taps button .kw{display:block;font-size:10px;color:var(--text-mut);font-weight:400}
+  .acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:7px;margin-top:9px}
+  .acts button{background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;
+    padding:10px 6px;font-size:12.5px;font-weight:600}
+  .acts button .hind{display:block;font-size:11px;font-weight:400;color:var(--text-dim)}
+  .acts button:disabled{opacity:.4;cursor:not-allowed}
+  .acts button.primary{border-color:var(--molten)}
+  .simctl{display:flex;gap:7px;align-items:center;margin-top:9px;font-size:12px;color:var(--text-mut)}
+  .simctl button{background:var(--bg-raised);border:1px solid var(--line);border-radius:5px;
+    padding:6px 11px;font-family:var(--mono);font-size:12px}
+  .simctl button.sel{border-color:var(--steel);color:var(--steel)}
+
+  /* ── tables ───────────────────────────────────────────────────────── */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line-soft);text-align:right;
+    font-family:var(--mono);font-variant-numeric:tabular-nums}
+  th{color:var(--text-mut);font-family:var(--sans);font-weight:600;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.05em}
+  th:first-child,td:first-child{text-align:left}
+  td input{width:74px;font-size:12px;text-align:right}
+  tr.binding td{color:var(--molten-hi)}
+  .hit{color:var(--green)} .miss{color:var(--red)}
+
+  .btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .btnrow button{background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;
+    padding:9px 16px;font-size:13px;font-weight:600}
+  .btnrow button.primary{border-color:var(--molten);color:var(--molten-hi)}
+  .note{font-size:12px;color:var(--text-mut);margin-top:8px;line-height:1.55}
+  .mixout{font-family:var(--mono);font-size:13px;white-space:pre-wrap;background:var(--bg-raised);
+    border:1px solid var(--line-soft);border-radius:6px;padding:10px 12px;margin-top:10px;min-height:40px}
+  .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+  .set{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-mut)}
+  .toast{position:fixed;bottom:18px;right:18px;background:var(--bg-raised);border:1px solid var(--steel);
+    border-radius:7px;padding:10px 16px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="console">
+
+  <header>
+    <div class="brand">SMART<em>MELT</em></div>
+    <div class="hchip" id="hcPlant"><b>—</b></div>
+    <div class="hchip">HEAT <b id="hcHeat">—</b></div>
+    <div class="hchip"><span data-i="clock">Furnace time</span> <b id="hcClock">00:00</b></div>
+    <div class="hchip">σ<sub>T</sub> <b id="hcSigma">—</b> °C</div>
+    <div class="spacer"></div>
+    <button class="langbtn active" id="btnEN">EN</button>
+    <button class="langbtn" id="btnHI">हिंदी</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-tab="operate">OPERATE<span class="hind">संचालन</span></button>
+    <button data-tab="traj">TRAJECTORY<span class="hind">प्रक्रिया पथ</span></button>
+    <button data-tab="mix">CHARGE MIX<span class="hind">चार्ज मिश्रण</span></button>
+    <button data-tab="log">HEAT LOG<span class="hind">हीट लॉग</span></button>
+    <button data-tab="settings">SETTINGS<span class="hind">सेटिंग</span></button>
+  </nav>
+
+  <!-- ══ OPERATE ══════════════════════════════════════════════════════ -->
+  <section class="tabpane active" id="pane-operate">
+    <div class="grid-op">
+      <div>
+        <div class="panel">
+          <h2><span data-i="live">Live heat</span><span class="hind">चालू हीट</span></h2>
+          <div class="kpis">
+            <div class="kpi temp"><div class="lab"><span data-i="bathT">Bath temp (est)</span><span class="hind">ताप (अनुमान)</span></div>
+              <div class="val" id="kT">—</div><div class="sub">± <span class="sigma" id="kTs">—</span> °C</div></div>
+            <div class="kpi"><div class="lab"><span data-i="carbon">Carbon</span><span class="hind">कार्बन</span></div>
+              <div class="val" id="kC">—</div><div class="sub">wt %</div></div>
+            <div class="kpi"><div class="lab"><span data-i="power">Power</span><span class="hind">पावर</span></div>
+              <div class="val" id="kP">—</div><div class="sub">kW</div></div>
+            <div class="kpi"><div class="lab"><span data-i="energy">Energy</span><span class="hind">ऊर्जा</span></div>
+              <div class="val" id="kE">—</div><div class="sub">kWh · <span id="kSEC">—</span> kWh/t</div></div>
+            <div class="kpi"><div class="lab"><span data-i="predtap">Pred. tap</span><span class="hind">अनुमानित टैप</span></div>
+              <div class="val" id="kTap">—</div><div class="sub" id="kTapSub">—</div></div>
+          </div>
+          <div style="height:12px"></div>
+          <div class="furnace-wrap">
+            <div class="furnace" aria-label="furnace cross-section">
+              <div class="coil"></div><div class="coil r"></div>
+              <div class="scrap" id="fxScrap"></div>
+              <div class="melt" id="fxMelt"></div>
+              <div class="hotface" id="fxHot">hot face — °C</div>
+            </div>
+            <div class="melt-legend">
+              <div><span data-i="solid">Solid charge</span>: <b id="lgSolid">—</b> t @ <b id="lgTs">—</b> °C</div>
+              <div><span data-i="liquid">Liquid</span>: <b id="lgLiq">—</b> t</div>
+              <div><span data-i="slag">Slag</span>: <b id="lgSlag">—</b> kg · B2 <b id="lgB2">—</b> · FeO <b id="lgFeO">—</b>%</div>
+              <div><span data-i="melted">Melted</span>: <b id="lgPct">—</b>%</div>
+              <div class="disschips" id="dissChips"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2><span data-i="trend">Trend — temperature & power</span><span class="hind">रुझान</span></h2>
+          <canvas class="trend" id="cvTrend" data-h="230"></canvas>
+        </div>
+
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2><span data-i="advisory">Advisory</span><span class="hind">सलाह</span></h2>
+          <div class="verdicts" id="verdicts"></div>
+          <div class="driftbar" id="driftbar"><span class="dot"></span><span id="driftTxt">—</span></div>
+        </div>
+
+        <div class="panel">
+          <h2><span data-i="powertap">Power tap</span><span class="hind">पावर टैप</span></h2>
+          <div class="taps" id="taps"></div>
+          <div class="note" id="mpcNote">—</div>
+        </div>
+
+        <div class="panel">
+          <h2><span data-i="actions">Actions</span><span class="hind">कार्रवाई</span></h2>
+          <div class="acts">
+            <button id="aDip"><span data-i="dip">Immersion dip</span><span class="hind">तापमान माप</span></button>
+            <button id="aLime"><span data-i="lime">Add lime 48 kg</span><span class="hind">चूना 48 kg</span></button>
+            <button id="aFeSi"><span data-i="fesi">Add FeSi75 15 kg</span><span class="hind">FeSi75 15 kg</span></button>
+            <button id="aCarb"><span data-i="carb">Carburiser 10 kg</span><span class="hind">कार्बुराइज़र 10 kg</span></button>
+            <button id="aOre"><span data-i="ore">Mill scale 20 kg</span><span class="hind">मिल स्केल 20 kg</span></button>
+            <button id="aTap" class="primary"><span data-i="tapheat">TAP HEAT</span><span class="hind">हीट निकालें</span></button>
+            <button id="aNew"><span data-i="newheat">New heat</span><span class="hind">नई हीट</span></button>
+          </div>
+          <div class="simctl">
+            <span data-i="speed">Sim speed</span>
+            <button data-sp="0">⏸</button><button data-sp="1">1×</button>
+            <button data-sp="10" class="sel">10×</button><button data-sp="60">60×</button>
+            <span class="spacer"></span><span id="stateTag">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ TRAJECTORY ══════════════════════════════════════════════════ -->
+  <section class="tabpane" id="pane-traj">
+    <div class="trajgrid">
+      <div class="panel"><h2><span data-i="tjTemp">Temperatures</span><span class="hind">ताप</span></h2>
+        <canvas class="trend tj" id="tjTemp" data-h="250"></canvas></div>
+      <div class="panel"><h2><span data-i="tjMetal">Metal composition</span><span class="hind">धातु संघटन</span></h2>
+        <canvas class="trend tj" id="tjMetal" data-h="250"></canvas></div>
+      <div class="panel"><h2><span data-i="tjSlag">Slag composition & basicity</span><span class="hind">स्लैग संघटन व B2</span></h2>
+        <canvas class="trend tj" id="tjSlag" data-h="250"></canvas></div>
+      <div class="panel"><h2><span data-i="tjInv">Inventories & dissolution</span><span class="hind">भंडार व घुलन</span></h2>
+        <canvas class="trend tj" id="tjInv" data-h="250"></canvas></div>
+      <div class="panel"><h2><span data-i="tjEner">Energy & specific energy</span><span class="hind">ऊर्जा व SEC</span></h2>
+        <canvas class="trend tj" id="tjEner" data-h="250"></canvas></div>
+      <div class="panel"><h2><span data-i="tjPow">Power & heat losses</span><span class="hind">पावर व ऊष्मा हानि</span></h2>
+        <canvas class="trend tj" id="tjPow" data-h="250"></canvas></div>
+    </div>
+    <div class="note" data-i="tjnote">Live from the running heat — the same state vector the advisory reads. Yellow markers on the temperature panel are immersion dips; the shaded band on the metal panel is the carbon aim window.</div>
+  </section>
+
+  <!-- ══ CHARGE MIX ══════════════════════════════════════════════════ -->
+  <section class="tabpane" id="pane-mix">
+    <div class="panel">
+      <h2><span data-i="mixtitle">Least-cost charge mix (LP)</span><span class="hind">न्यूनतम लागत चार्ज</span></h2>
+      <table id="tblMats"><thead><tr>
+        <th data-i="material">Material</th><th>₹/kg</th><th>C%</th><th>Si%</th><th>Mn%</th><th>P%</th><th>S%</th><th>Cu%</th>
+        <th data-i="yield">Yield</th><th>kWh/kg</th><th data-i="avail">Avail kg</th><th data-i="usekg">Use kg</th>
+      </tr></thead><tbody></tbody></table>
+      <div class="btnrow">
+        <span class="set"><span data-i="liquidt">Liquid target t</span><input id="mxTarget" value="12.0" size="5"></span>
+        <span class="set">C % lo–hi<input id="mxClo" value="0.15" size="4"> <input id="mxChi" value="0.30" size="4"></span>
+        <span class="set">Mn % lo–hi<input id="mxMnlo" value="0.25" size="4"> <input id="mxMnhi" value="0.60" size="4"></span>
+        <span class="set">Cu % ≤<input id="mxCu" value="0.25" size="4"></span>
+        <span class="set">P % ≤<input id="mxP" value="0.045" size="5"></span>
+        <span class="set">S % ≤<input id="mxS" value="0.040" size="5"></span>
+        <button class="primary" id="mxSolve" data-i="solve">Solve mix</button>
+      </div>
+      <div class="mixout" id="mixOut">—</div>
+      <div class="note" data-i="mixnote">Binding walls are highlighted; the shadow price is what one 0.01 % of relaxation is worth per tonne — the number to take to the scrap negotiation.</div>
+    </div>
+  </section>
+
+  <!-- ══ HEAT LOG ════════════════════════════════════════════════════ -->
+  <section class="tabpane" id="pane-log">
+    <div class="panel">
+      <h2><span data-i="logtitle">Heat log</span><span class="hind">हीट लॉग</span></h2>
+      <table id="tblLog"><thead><tr>
+        <th>#</th><th data-i="time">Time</th><th>Tap T °C</th><th>ΔT</th>
+        <th>C %</th><th>ΔC</th><th>Si %</th><th>Mn %</th><th>S %</th>
+        <th data-i="tapmass">Tap t</th><th>kWh</th><th>SEC</th><th data-i="avgp">Avg kW</th>
+        <th data-i="addskg">Adds kg</th><th data-i="undis">Undis kg</th><th data-i="dips">Dips</th>
+        <th>min</th><th data-i="result">Result</th>
+      </tr></thead><tbody></tbody></table>
+      <div class="btnrow">
+        <button id="logCSV" data-i="exportcsv">Export heats CSV</button>
+        <button id="evtCSV" data-i="exportevt">Export event log CSV</button>
+      </div>
+      <h2 style="margin-top:18px"><span data-i="evttitle">Event log — every action & parameter change</span><span class="hind">इवेंट लॉग</span></h2>
+      <table id="tblEvt"><thead><tr>
+        <th>#</th><th data-i="heattime">Heat time</th><th data-i="event">Event</th><th data-i="detail">Detail</th>
+      </tr></thead><tbody></tbody></table>
+      <div class="note" data-i="lognote">Every advisory shown, every action taken and every outcome lands here — the audit trail, the ML training set, and the shared-savings evidence are the same table.</div>
+    </div>
+  </section>
+
+  <!-- ══ SETTINGS ════════════════════════════════════════════════════ -->
+  <section class="tabpane" id="pane-settings">
+    <div class="panel">
+      <h2><span data-i="settitle">Plant settings</span><span class="hind">प्लांट सेटिंग</span></h2>
+      <div class="settings-grid" id="setGrid"></div>
+      <div class="btnrow">
+        <button class="primary" id="setSave" data-i="save">Save settings</button>
+        <button id="setReset" data-i="reset">Restore defaults</button>
+      </div>
+      <div class="note" data-i="setnote">These mirror the YAML config of the smartmelt Python package: change them here for the console, change the YAML for the model. Saved settings persist on this workstation where storage is available.</div>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════
+   SmartMelt Operator Console v2 — single file, offline-capable.
+   The simulation core is a faithful JS reduction of the smartmelt
+   Python package: same structure (power split E23, melt area E28+cap,
+   dissolution E7a-c, 4-node implicit wall E5d, air-ingress oxygen
+   ledger E27, superheat-gated kinetics E24a), simplified coefficients.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── i18n ─────────────────────────────────────────────────────────── */
+const I18N = {
+  clock:["Furnace time","भट्ठी समय"], live:["Live heat","चालू हीट"],
+  bathT:["Bath temp (est)","ताप (अनुमान)"], carbon:["Carbon","कार्बन"],
+  power:["Power","पावर"], energy:["Energy","ऊर्जा"], predtap:["Pred. tap","अनुमानित टैप"],
+  solid:["Solid charge","ठोस चार्ज"], liquid:["Liquid","द्रव"], slag:["Slag","स्लैग"],
+  melted:["Melted","पिघला"], trend:["Trend — temperature & power","रुझान — ताप व पावर"],
+  advisory:["Advisory","सलाह"], traj:["Process trajectory — composition, melt, slag","प्रक्रिया पथ — संघटन, पिघलाव, स्लैग"], powertap:["Power tap","पावर टैप"], actions:["Actions","कार्रवाई"],
+  dip:["Immersion dip","तापमान माप"], lime:["Add lime 48 kg","चूना 48 kg"],
+  fesi:["Add FeSi75 15 kg","FeSi75 15 kg"], carb:["Carburiser 10 kg","कार्बुराइज़र 10 kg"],
+  ore:["Mill scale 20 kg","मिल स्केल 20 kg"], tapheat:["TAP HEAT","हीट निकालें"],
+  newheat:["New heat","नई हीट"], speed:["Sim speed","गति"],
+  mixtitle:["Least-cost charge mix (LP)","न्यूनतम लागत चार्ज (LP)"],
+  material:["Material","सामग्री"], yield:["Yield","यील्ड"], avail:["Avail kg","उपलब्ध kg"],
+  usekg:["Use kg","उपयोग kg"], liquidt:["Liquid target t","द्रव लक्ष्य t"], solve:["Solve mix","हल करें"],
+  mixnote:["Binding walls are highlighted; the shadow price is what one 0.01 % of relaxation is worth per tonne — the number to take to the scrap negotiation.",
+           "बाध्यकारी सीमाएँ हाइलाइट हैं; शैडो प्राइस बताता है कि 0.01 % की छूट प्रति टन कितनी बचत देगी — यही संख्या स्क्रैप मोल-भाव में काम आती है।"],
+  logtitle:["Heat log","हीट लॉग"],
+  tjTemp:["Temperatures","ताप"], tjMetal:["Metal composition","धातु संघटन"],
+  tjSlag:["Slag composition & basicity","स्लैग संघटन व B2"],
+  tjInv:["Inventories & dissolution","भंडार व घुलन"],
+  tjEner:["Energy & specific energy","ऊर्जा व SEC"], tjPow:["Power & heat losses","पावर व ऊष्मा हानि"],
+  tjnote:["Live from the running heat — the same state vector the advisory reads. Yellow markers on the temperature panel are immersion dips; the shaded band on the metal panel is the carbon aim window.",
+          "चालू हीट से लाइव — वही स्टेट वेक्टर जिसे सलाह पढ़ती है। ताप पैनल पर पीले बिंदु = तापमान माप; धातु पैनल की पट्टी = कार्बन लक्ष्य।"],
+  tapmass:["Tap t","टैप t"], avgp:["Avg kW","औसत kW"], addskg:["Adds kg","योग kg"],
+  undis:["Undis kg","अघुलित kg"], dips:["Dips","माप"],
+  exportevt:["Export event log CSV","इवेंट CSV निर्यात"],
+  evttitle:["Event log — every action & parameter change","इवेंट लॉग — हर कार्रवाई व पैरामीटर"],
+  heattime:["Heat time","हीट समय"], event:["Event","इवेंट"], detail:["Detail","विवरण"],
+  evCharge:["CHARGE","चार्ज"], evPower:["POWER","पावर"], evAdd:["ADDITION","योग"],
+  evDip:["DIP","माप"], evDrift:["DRIFT ALARM","ड्रिफ्ट अलार्म"], evTap:["TAP","टैप"], time:["Time","समय"], aim:["Aim","लक्ष्य"], result:["Result","परिणाम"],
+  exportcsv:["Export CSV","CSV निर्यात"],
+  lognote:["Every advisory shown, every action taken and every outcome lands here — the audit trail, the ML training set, and the shared-savings evidence are the same table.",
+           "हर सलाह, हर कार्रवाई और हर परिणाम यहाँ दर्ज होता है — यही ऑडिट ट्रेल, ML प्रशिक्षण डेटा और बचत-प्रमाण है।"],
+  settitle:["Plant settings","प्लांट सेटिंग"], save:["Save settings","सहेजें"], reset:["Restore defaults","डिफ़ॉल्ट"],
+  setnote:["These mirror the YAML config of the smartmelt Python package: change them here for the console, change the YAML for the model. Saved settings persist on this workstation where storage is available.",
+           "ये smartmelt Python पैकेज की YAML कॉन्फ़िग के समान हैं। सहेजी गई सेटिंग इस वर्कस्टेशन पर बनी रहती हैं (जहाँ स्टोरेज उपलब्ध हो)।"],
+  // dynamic strings
+  vTemp:["Bath temperature","ताप"], noPool:["Charge temp — no pool yet","चार्ज ताप — पूल नहीं"],
+  bathTlab:["Bath temp (est)","ताप (अनुमान)"], vCarb:["Carbon","कार्बन"], vSlag:["Slag B2 / FeO","स्लैग B2 / FeO"],
+  vEner:["Specific energy","विशिष्ट ऊर्जा"],
+  running:["MELTING","पिघल रही है"], ready:["READY TO TAP","टैप के लिए तैयार"], holding:["HOLDING","होल्ड"], done:["TAPPED","टैप हो गई"], paused:["PAUSED","रुकी"],
+  driftOK:["Input drift: none — ML heads active","इनपुट ड्रिफ्ट: नहीं — ML सक्रिय"],
+  driftON:["DRIFT ALARM — advice demoted to physics-only, wider σ. Re-fit on recent heats.","ड्रिफ्ट अलार्म — केवल भौतिकी-आधारित सलाह, σ बढ़ा। हाल की हीटों पर पुनः-फिट करें।"],
+  recTap:["Recommended tap","सुझावित टैप"], toTap:["min to tap","टैप तक मिनट"],
+  logged:["Heat logged.","हीट दर्ज हुई।"], saved:["Settings saved.","सेटिंग सहेजी गईं।"],
+  memOnly:["No persistent storage here — settings hold for this session only.","स्थायी स्टोरेज नहीं — सेटिंग केवल इस सत्र के लिए।"],
+  needliq:["Need a liquid pool first.","पहले द्रव पूल बनने दें।"],
+  suspN:["suspended — uncertainty/drift","निलंबित — अनिश्चितता/ड्रिफ्ट"]
+};
+let LANG = 0; // 0=EN 1=HI
+function T(k){ const e=I18N[k]; return e ? e[LANG] : k; }
+function applyLang(){
+  document.querySelectorAll("[data-i]").forEach(el=>{ el.textContent = T(el.dataset.i); });
+  document.getElementById("btnEN").classList.toggle("active", LANG===0);
+  document.getElementById("btnHI").classList.toggle("active", LANG===1);
+  renderAll(true);
+}
+
+/* ── config (mirrors YAML) ────────────────────────────────────────── */
+const DEFAULT_CFG = {
+  plantName:"Industry-X MSME IF · 12 t", heatKg:12000, heelFrac:0.08,
+  ratedKW:6000, taps:[0,1500,3000,4200,5100,6000], etaConv:0.94,
+  etaCoupMax:0.88, fillRef:0.35,
+  TliqC:1495, TtapC:1620, aimC:0.20, aimClo:0.15, aimChi:0.30,
+  cps:0.70, cpl:0.82, Lf:247, cpslag:1.2,   // L_f = 247 kJ/kg (CRC 104th ed.)
+  D:1.8, Hbath:1.5, lid:0.85, emisTop:0.85,
+  hsl:1500, qmax:350, Aref:14,
+  hInner:1200, hSolidWall:150, hCoil:900, TcoolC:45,
+  wallThk:[0.006,0.018,0.05,0.07], wallK:[1.6,1.6,1.6,1.2], wallRhoCp:[2730,2730,2730,2200],
+  airIngress:0.6, tariff:7.0, baselineSEC:615, heatsPerDay:14, gridEF:0.712,
+  sigmaDip:4.0, sigmaGrowth:1.2
+};
+let CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
+
+/* storage: artifact window.storage if present; otherwise memory only. */
+const store = {
+  async get(k){ try{ if(window.storage){ const r=await window.storage.get(k); return r?JSON.parse(r.value):null; } }catch(e){} return null; },
+  async set(k,v){ try{ if(window.storage){ await window.storage.set(k,JSON.stringify(v)); return true; } }catch(e){} return false; }
+};
+
+/* ── simulation core ──────────────────────────────────────────────── */
+const K=273.15, SB=5.670e-8;
+function newState(cfg, truth){
+  const heel = cfg.heatKg*cfg.heelFrac;
+  return {
+    t:0, Ms:cfg.heatKg-heel, Ts:35+K, Ml:heel, Tb:cfg.TliqC+30+K,
+    el:{C:0.0035,Si:0.0022,Mn:0.0035,S:0.0003,Cu:0.0020},  // mass fractions of liquid
+    slag:{FeO:6,CaO:14,SiO2:9},                            // kg
+    Tw:[0,0,0,0].map((_,i)=> (truth?900:900) - i*180 + K),
+    E:0, pool:[],                                          // dissolving additions
+    // hidden truth vs estimator mismatch (the EKF story):
+    etaTheta: truth ? 0.90 : 0.935,
+    uaScale:  truth ? 1.30 : 1.00
+  };
+}
+function areas(c){ const Abath=Math.PI*c.D*c.D/4;
+  return {Awall:Math.PI*c.D*c.Hbath, Atop:Abath*(1-c.lid), Abath}; }
+
+function wallImplicit(s,c,dt){                    // (E5d) 4-node Thomas solve
+  const A=areas(c), fl=s.Ml/Math.max(s.Ml+s.Ms,1e-6);
+  const N=4, thk=c.wallThk, G=[];                 // conductances node i<->i+1
+  for(let i=0;i<N-1;i++) G.push(A.Awall/(thk[i]/(2*c.wallK[i])+thk[i+1]/(2*c.wallK[i+1])));
+  const Cn=thk.map((h,i)=>c.wallRhoCp[i]*1000*h*A.Awall);   // J/K
+  const hin=(c.hInner*fl+c.hSolidWall*(1-fl))*s.uaScale, Gin=hin*A.Awall;
+  const Tdrv=(c.hInner*fl*s.Tb+c.hSolidWall*(1-fl)*s.Ts)/Math.max(hin/s.uaScale,1e-9);
+  const Gout=c.hCoil*A.Awall, Tcool=c.TcoolC+K;
+  // tridiagonal (a,b,d) x = r
+  const a=[0,0,0,0], b=[0,0,0,0], d=[0,0,0,0], r=[0,0,0,0];
+  for(let i=0;i<N;i++){ b[i]=Cn[i]/dt; r[i]=Cn[i]/dt*s.Tw[i]; }
+  b[0]+=Gin; r[0]+=Gin*Tdrv;
+  for(let i=0;i<N-1;i++){ b[i]+=G[i]; b[i+1]+=G[i]; d[i]=-G[i]; a[i+1]=-G[i]; }
+  b[N-1]+=Gout; r[N-1]+=Gout*Tcool;
+  for(let i=1;i<N;i++){ const m=a[i]/b[i-1]; b[i]-=m*d[i-1]; r[i]-=m*r[i-1]; }
+  const x=[0,0,0,0]; x[N-1]=r[N-1]/b[N-1];
+  for(let i=N-2;i>=0;i--) x[i]=(r[i]-d[i]*x[i+1])/b[i];
+  const qFace=Gin*(Tdrv-x[0]);                    // W, exact implicit hot-face flux
+  s.Tw=x;
+  return {qFace, wl: c.hInner*fl/Math.max(hin/s.uaScale,1e-9)};
+}
+
+function stepSim(s,c,PkW,dt){                     // one dt-second physics step
+  const A=areas(c), Mmax=c.heatKg;
+  const fill=(s.Ml+s.Ms)/Mmax;
+  const etaCoup=c.etaCoupMax*(1-Math.exp(-fill/c.fillRef));
+  const Puse=PkW*c.etaConv*etaCoup*s.etaTheta;    // kW  (E21-E22)
+  const fs=s.Ms/Math.max(s.Ml+s.Ms,1e-6);         // (E23) IF split by mass
+  const Tliq=c.TliqC+K;
+
+  // dissolution pool (E7a-c). Lumps PARK until a real pool exists: dropping
+  // 10 kg of carburiser into a 1 kg puddle is not 99 %C steel, it is a lump
+  // sitting on frozen heel — release only when M_l > 100 kg, then mix
+  // mass-conservingly (denominator M_l + dm, and dm joins the bath mass).
+  let Qdiss=0;
+  if(s.Ml>100){
+    const superheat=Math.max(s.Tb-Tliq,2);
+    for(const p of s.pool){ if(p.m<=1e-6) continue;
+      const tauEff=p.tau*Math.max(1,p.dTref/superheat);
+      const dm=p.m*(1-Math.exp(-dt/tauEff)); p.m-=dm;
+      let dmMetal=0;
+      for(const k in p.into) dmMetal+=dm*(p.into[k]||0);
+      for(const k in p.into) if(k in s.el)
+        s.el[k]=(s.el[k]*s.Ml+dm*p.into[k])/(s.Ml+dmMetal);
+      if(dmMetal>0){ for(const k in s.el) if(!(k in p.into))
+        s.el[k]=s.el[k]*s.Ml/(s.Ml+dmMetal); s.Ml+=dmMetal; }
+      if(p.slag) for(const k in p.slag) s.slag[k]=(s.slag[k]||0)+dm*p.slag[k];
+      Qdiss += dm*((p.cp||c.cps)*(s.Tb-(30+K))/dt + p.dH/dt); // kW (E7c)
+    }
+    s.pool=s.pool.filter(p=>p.m>1e-6);
+  }
+
+  // bath -> scrap flux (E28 + cap)
+  let Qs=0, mMelt=0;
+  const fliq=s.Ml/Math.max(s.Ml+s.Ms,1e-6);
+  if(s.Ms>1){
+    const Aeff=c.Aref*Math.sqrt(s.Ms/Mmax)*Math.cbrt(Math.max(fliq,0));
+    Qs=Math.min(c.hsl*(Math.max(s.Tb-s.Ts,0))/1000, c.qmax)*Aeff;   // kW
+  }
+  // wall (implicit, exactly-paired energy)
+  const w=wallImplicit(s,c,dt);
+  const Qwall=w.qFace/1000, QwL=Qwall*w.wl, QwS=Qwall-QwL;
+
+  // solid heating / melting (E4)
+  const Psolid=Puse*fs;
+  if(s.Ms>1){
+    if(s.Ts<Tliq-0.5){
+      s.Ts+=dt*(Psolid+Qs-QwS)/(s.Ms*c.cps);
+      if(s.Ts>Tliq) s.Ts=Tliq;
+    } else {
+      mMelt=Math.max(Psolid+Qs-QwS,0)/c.Lf;                   // kg/s
+      mMelt=Math.min(mMelt,s.Ms/dt);
+      const dm=mMelt*dt;
+      // melted charge enters at charge composition
+      const cc={C:0.0035,Si:0.0022,Mn:0.0035,S:0.0003,Cu:0.0020};
+      for(const k in s.el) s.el[k]=(s.el[k]*s.Ml+dm*cc[k])/Math.max(s.Ml+dm,1);
+      s.Ml+=dm; s.Ms-=dm;
+    }
+  }
+
+  // chemistry: air-ingress oxygen ledger (E27a) + gated kinetics (E24a)
+  let Qchem=0;
+  if(s.Ml>50 && s.Tb>Tliq-5){
+    const molO=2*(c.airIngress*(s.Ml+s.Ms)/1000/3600)/22.414*1000; // mol O/s
+    const gate=fliq;
+    const want=[ ["Si",0.0002, 2*1e-3, 27.8e3, "SiO2", 60/28],
+                 ["C", 0.0005, 1e-3,  11.1e3, null, 0],
+                 ["Mn",0.0015, 0.8e-3, 7.0e3, "MnO", 71/55] ];
+    let O=molO;
+    for(const [el,eq,kk,dH,ox,f] of want){
+      const x=s.el[el]; if(x<=eq) continue;
+      let r=kk*(x-eq)*s.Ml*gate;                               // kg/s desired
+      const molNeed=r*1000/({Si:28,C:12,Mn:55})[el]*(el==="Si"?2:1);
+      if(molNeed>O){ r*=O/Math.max(molNeed,1e-9); O=0; } else O-=molNeed;
+      const dm=r*dt;
+      s.el[el]=Math.max((s.el[el]*s.Ml-dm)/s.Ml,0);
+      if(ox) s.slag[ox]=(s.slag[ox]||0)+dm*f;
+      Qchem+=r*dH/1000;                                        // kW
+    }
+    if(O>0){ const dFeO=O/2*0.072*dt*0.4; s.slag.FeO+=dFeO; }  // (E27b) surplus->FeO
+  }
+
+  // (E27c) slag FeO reduction by dissolved carbon:
+  //     (FeO) + [C] -> Fe(l) + CO(g)
+  // Stoichiometry per kg FeO: consumes 12/71.8 = 0.167 kg C, returns
+  // 55.8/71.8 = 0.777 kg Fe to the metal. Net enthalpy by Hess's law
+  // ~ -1.89 MJ per kg FeO (ENDOTHERMIC, ~ +101 kJ/mol CO at 1873 K) —
+  // this is why mill scale / ore is a bath COOLANT and a decarburiser.
+  // First-order in FeO inventory and carbon over-saturation, gated on a
+  // real superheated pool (no pool, no slag-metal interface).
+  let Q_FeOred=0, rFeO=0;
+  if(s.Ml>100 && s.Tb>Tliq+2 && s.slag.FeO>0.3){
+    const C_eq_red=0.05/100;                       // eq. carbon vs FeO-rich slag
+    if(s.el.C>C_eq_red){
+      const kFeO=0.004;                            // 1/s per kg FeO driving force
+      rFeO=Math.min(kFeO*s.slag.FeO*(s.el.C-C_eq_red)*100, s.slag.FeO/dt*0.5); // kg FeO/s
+      const dFeO=rFeO*dt, dC=dFeO*0.167, dFe=dFeO*0.777;
+      s.slag.FeO=Math.max(s.slag.FeO-dFeO,0);
+      const mC=Math.max(s.el.C*s.Ml-dC,0);
+      // remove C, add Fe: renormalise fractions over the new liquid mass
+      const Ml2=s.Ml-dC+dFe+dC*0;                  // C leaves as CO; Fe joins
+      for(const k in s.el) s.el[k]=s.el[k]*s.Ml/Ml2;
+      s.el.C=mC/Ml2;
+      s.Ml=Ml2;
+      Q_FeOred=rFeO*1390;                          // kW endothermic sink
+      //  1.39 MJ/kg FeO = +100 kJ/mol CO at 1873 K (verified).
+      //  The earlier 1890 was the per-kg-Fe value — a molar-mass slip
+      //  that over-cooled the bath by ~36 % on every ore addition.
+    }
+  }
+
+  // bath energy balance (E3)
+  const Qrad=c.emisTop*SB*A.Atop*(Math.pow(s.Tb,4)-Math.pow(35+K,4))/1000;
+  if(s.Ml>20){
+    const Qnet=Puse*(1-fs)+Qchem-Qs-QwL-Qrad-Qdiss-Q_FeOred + mMelt*c.cpl*(Tliq-s.Tb);
+    if(s.Tb<=Tliq && Qnet<0){ const mf=Math.min(-Qnet/c.Lf*dt, s.Ml/10); s.Ml-=mf; s.Ms+=mf; }
+    else s.Tb+=dt*Qnet/(Math.max(s.Ml,50)*c.cpl);
+  } else { s.Tb += dt*(s.Ts-s.Tb)/30; }                        // (E3c)
+  s.Tb=Math.min(Math.max(s.Tb,250),2100+K);
+  s.E+=PkW*dt/3600; s.t+=dt;
+  s.diag={Puse, Qwall, Qrad, Qs, Qchem, Q_FeOred, rFeO};      // for trend charts
+}
+
+/* ── dual track: hidden TRUTH plant + on-screen ESTIMATE ──────────── */
+let truth, est, heatNo=1, tapSel=4, speed=10, tapped=false;
+const EVENTS=[];            // every action & parameter change, timestamped
+let heatStats;              // per-heat operating aggregates for the log sheet
+function logEvent(type, detail){
+  EVENTS.unshift({heat:"H-"+(1000+heatNo), tmin:truth?truth.t/60:0,
+                  wall:new Date().toLocaleTimeString(), type, detail});
+  if(EVENTS.length>500) EVENTS.pop();
+  renderEvents();
+}
+function newHeatStats(){ return {addsKg:0, adds:[], dips:0, Pkwh_num:0, Pkwh_den:0,
+                                 tapChanges:0}; }
+let sigmaT, lastDipMin, biasCorr, drift=false;
+let hist;   // trend samples {t, Ttrue, Test, sig, P, meas?}
+const LOG=[];
+
+function startHeat(){
+  truth=newState(CFG,true); est=newState(CFG,false);
+  sigmaT=18; lastDipMin=0; biasCorr=0; tapped=false;
+  hist=[]; drift=false;
+  heatNo++;
+  mpcCache=null; mpcAge=0;
+  heatStats=newHeatStats();
+  document.getElementById("hcHeat").textContent="H-"+(1000+heatNo);
+  logEvent(T("evCharge"),
+    `${(CFG.heatKg/1000).toFixed(1)} t charge, ${(CFG.heatKg*CFG.heelFrac/1000).toFixed(2)} t hot heel · `
+    +`charge assay C 0.35 / Si 0.22 / Mn 0.35 / S 0.030 / Cu 0.20 % · `
+    +`aim ${CFG.TtapC} °C, C ${CFG.aimClo}–${CFG.aimChi} % · start TAP ${tapSel} (${CFG.taps[tapSel]} kW)`);
+  toast(T("newheat"));
+  renderAll(true);
+}
+
+// dH is the INTRINSIC HEAT OF SOLUTION only; cp is an effective heat capacity
+// (sensible + fusion of the addition) applied separately in stepSim. Keeping
+// them apart is what makes the net bath effect match plant observation:
+//   FeSi75 net ~ -0.72 MJ/kg (cf. +4.73 C/t FeSi75, Bernhard et al. 2025)
+//   carburiser total ~ +4.6 MJ/kg C
+const ADD_DEFS={
+  lime:{name:"Lime (92% CaO)", m:48, tau:240, dTref:25, dH:150,   cp:1.00, into:{}, slag:{CaO:0.92,SiO2:0.04}},
+  fesi:{name:"FeSi75",         m:15, tau:90,  dTref:25, dH:-3511, cp:1.78, into:{Si:0.75}},
+  carb:{name:"Carburiser",     m:10, tau:420, dTref:25, dH:1883,  cp:1.75, into:{C:0.99}},
+  ore: {name:"Mill scale (FeO)",m:20, tau:120, dTref:25, dH:250,  cp:0.90, into:{}, slag:{FeO:0.95},
+        note:"decarburiser + coolant: (FeO)+[C]→Fe+CO, +100 kJ/mol CO endothermic"}
+};
+function addMaterial(kind){
+  const d=ADD_DEFS[kind];
+  for(const st of [truth,est]) st.pool.push(JSON.parse(JSON.stringify(d)));
+  heatStats.addsKg+=d.m; heatStats.adds.push(`${d.name} ${d.m}kg`);
+  logEvent(T("evAdd"),
+    `${d.name} +${d.m} kg at T_bath ${(truth.Tb-K).toFixed(0)} °C · τ=${d.tau}s, `
+    +`ΔH=${d.dH>0?"+":""}${d.dH} kJ/kg (${d.dH<0?"exothermic":"endothermic"})`
+    +(d.note?` · ${d.note}`:""));
+  toast(d.name+" +"+d.m+" kg");
+}
+
+/* immersion dip: measurement of the TRUTH, assimilated into the estimate */
+function doDip(){
+  if(truth.Ml<50){ toast(T("needliq")); return; }
+  const meas=truth.Tb-K + gauss()*CFG.sigmaDip;
+  const innov=meas-(est.Tb-K);
+  const sig0=sigmaT, est0=est.Tb-K;
+  const gain=(sigmaT*sigmaT)/(sigmaT*sigmaT+CFG.sigmaDip*CFG.sigmaDip);
+  est.Tb+=gain*innov;
+  heatStats.dips++;
+  logEvent(T("evDip"),
+    `immersion T = ${meas.toFixed(0)} °C · estimate ${est0.toFixed(0)} → ${(est.Tb-K).toFixed(0)} °C · `
+    +`σ ${sig0.toFixed(1)} → ${(Math.sqrt(1-gain)*sig0).toFixed(1)} °C · η̂ → ${est.etaTheta.toFixed(3)}`);
+  // crude parameter learning: persistent hot/cold bias nudges eta-hat
+  est.etaTheta=Math.min(1.05,Math.max(0.8, est.etaTheta+0.004*Math.sign(innov)*Math.min(Math.abs(innov)/10,1)));
+  sigmaT=Math.sqrt((1-gain))*sigmaT; sigmaT=Math.max(sigmaT,CFG.sigmaDip*0.9);
+  lastDipMin=truth.t/60;
+  hist.push({t:truth.t/60,meas});
+}
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+/* forward projection + MPC-lite (E50/E51 reduced).
+   powerFn(state) lets the plan switch taps at meltdown — a constant-power
+   projection overshoots because the last scrap melts slowly (E28 area law)
+   while the pool keeps absorbing power. */
+function project(state,powerFn,maxMin){
+  const s=JSON.parse(JSON.stringify(state)); const c=CFG;
+  let mins=0;
+  while(mins<maxMin){
+    stepSim(s,c,powerFn(s),5); mins=(s.t-state.t)/60;
+    if(s.Tb-K>=c.TtapC && s.Ms<0.002*c.heatKg) break;
+  }
+  return {T:s.Tb-K, C:s.el.C*100, min:mins, E:s.E-state.E, melted:s.Ms<0.002*c.heatKg};
+}
+function mpcRecommend(){
+  let best=null;
+  const melted=s=>s.Ms<0.02*CFG.heatKg;
+  for(let i=2;i<CFG.taps.length;i++){         // melt-phase tap
+    for(let j=0;j<=i;j++){                    // hold-phase tap after meltdown
+      const p=project(est, s=> melted(s)?CFG.taps[j]:CFG.taps[i], 50);
+      const J=Math.pow(p.T-CFG.TtapC,2)+0.02*p.E+0.5*p.min*p.min/10+(p.melted?0:8000);
+      if(!best||J<best.J) best={J,i,j,p};
+    }
+  }
+  return best;
+}
+
+/* ── advisory (uncertainty-gated, bilingual) ──────────────────────── */
+function verdictRow(cls,badge,title,en,hi){
+  return `<div class="verdict ${cls}"><div class="badge">${badge}</div>
+    <div><div class="vt">${title}</div><div class="ven">${en}</div><div class="vhi">${hi}</div></div></div>`;
+}
+function buildVerdicts(pred){
+  const rows=[]; const dT=pred.T-CFG.TtapC;
+  const gateOff = drift || sigmaT>15;
+  const grade=(err,g,y)=> Math.abs(err)<=g?["ok","OK"]:Math.abs(err)<=y?["warn","!"]:["alarm","!!!"];
+  { let [cls,b]=grade(dT,15,30); if(gateOff){cls="susp";b="?";}
+    const en = dT>15?`Predicted tap T ${pred.T.toFixed(0)} °C is +${dT.toFixed(0)} above aim — step tap down / tap earlier`
+             : dT<-15?`Predicted tap T ${pred.T.toFixed(0)} °C is ${dT.toFixed(0)} below aim — hold power / delay tap`
+             : `Predicted tap T ${pred.T.toFixed(0)} °C on aim (±15)`;
+    const hi = dT>15?`अनुमानित ताप ${pred.T.toFixed(0)} °C, लक्ष्य से +${dT.toFixed(0)} — टैप घटाएँ / जल्दी टैप करें`
+             : dT<-15?`अनुमानित ताप ${pred.T.toFixed(0)} °C, लक्ष्य से ${dT.toFixed(0)} — पावर रखें / टैप रोकें`
+             : `ताप लक्ष्य पर (±15)`;
+    rows.push(verdictRow(cls,b,T("vTemp"),en+(gateOff?" — "+T("suspN"):""),hi)); }
+  { const c=pred.C; let cls="ok",b="OK",en=`Predicted C ${c.toFixed(2)} % inside ${CFG.aimClo}–${CFG.aimChi}`,
+      hi=`अनुमानित C ${c.toFixed(2)} % सीमा में`;
+    if(c>CFG.aimChi){cls=c>CFG.aimChi+0.05?"alarm":"warn";b=cls==="alarm"?"!!!":"!";
+      en=`Predicted C ${c.toFixed(2)} % above ${CFG.aimChi} — add mill scale / extend blow`;
+      hi=`C ${c.toFixed(2)} % अधिक — मिल स्केल डालें`;}
+    if(c<CFG.aimClo){cls="warn";b="!";en=`Predicted C ${c.toFixed(2)} % below ${CFG.aimClo} — add carburiser`;
+      hi=`C ${c.toFixed(2)} % कम — कार्बुराइज़र डालें`;}
+    if(gateOff){cls="susp";b="?";en+=" — "+T("suspN");}
+    rows.push(verdictRow(cls,b,T("vCarb"),en,hi)); }
+  { const B2=est.slag.CaO/Math.max(est.slag.SiO2,0.1), FeO=100*est.slag.FeO/Math.max(est.slag.CaO+est.slag.SiO2+est.slag.FeO,0.1);
+    let cls="ok",b="OK",en=`B2 ${B2.toFixed(2)}, FeO ${FeO.toFixed(1)} % — on aim`,hi=`स्लैग ठीक`;
+    if(B2<1.0||FeO>25){cls="warn";b="!";en=`B2 ${B2.toFixed(2)}, FeO ${FeO.toFixed(1)} % — adjust lime / check oxidation`;hi=`चूना समायोजित करें`;}
+    rows.push(verdictRow(cls,b,T("vSlag"),en,hi)); }
+  { const t=(est.Ml+est.Ms)/1000, sec=est.E/Math.max(t,0.1);
+    let cls="ok",b="OK",en=`${sec.toFixed(0)} kWh/t vs baseline ${CFG.baselineSEC}`,hi=`ऊर्जा ठीक`;
+    if(sec>CFG.baselineSEC){cls="warn";b="!";en=`${sec.toFixed(0)} kWh/t above baseline ${CFG.baselineSEC} — check taper & lid time`;hi=`ऊर्जा अधिक — पावर प्रोफ़ाइल देखें`;}
+    rows.push(verdictRow(cls,b,T("vEner"),en,hi)); }
+  return rows.join("");
+}
+
+/* ── trend chart ──────────────────────────────────────────────────── */
+function drawTrend(){
+  const cv=document.getElementById("cvTrend");
+  const {g,W,H}=fitCanvas(cv);
+  const pad={l:46,r:46,t:12,b:24};
+  const pts=hist.filter(h=>h.Test!==undefined);
+  if(pts.length<2) return;
+  const tmax=Math.max(pts[pts.length-1].t,10);
+  const Tlo=1200, Thi=1750, Plo=0, Phi=CFG.ratedKW;
+  const X=t=>pad.l+(W-pad.l-pad.r)*t/tmax;
+  const YT=v=>pad.t+(H-pad.t-pad.b)*(1-(v-Tlo)/(Thi-Tlo));
+  const YP=v=>pad.t+(H-pad.t-pad.b)*(1-(v-Plo)/(Phi-Plo));
+  g.strokeStyle="#232c33"; g.fillStyle="#7c8994"; g.font="12px monospace"; g.lineWidth=1;
+  for(let T0=1200;T0<=1700;T0+=100){ g.beginPath();g.moveTo(pad.l,YT(T0));g.lineTo(W-pad.r,YT(T0));g.stroke();
+    g.fillText(T0,6,YT(T0)+4); }
+  g.fillText("kW",W-pad.r+8,pad.t+8);
+  // sigma band
+  g.beginPath();
+  pts.forEach((h,i)=>{const y=YT(h.Test+2*h.sig); i?g.lineTo(X(h.t),y):g.moveTo(X(h.t),y);});
+  for(let i=pts.length-1;i>=0;i--){const h=pts[i];g.lineTo(X(h.t),YT(h.Test-2*h.sig));}
+  g.closePath(); g.fillStyle="rgba(79,168,216,.12)"; g.fill();
+  // power (right axis)
+  g.strokeStyle="#4d5860"; g.beginPath();
+  pts.forEach((h,i)=>{const y=YP(h.P); i?g.lineTo(X(h.t),y):g.moveTo(X(h.t),y);}); g.stroke();
+  // estimate
+  g.strokeStyle="#4fa8d8"; g.lineWidth=1.6; g.beginPath();
+  pts.forEach((h,i)=>{const y=YT(h.Test); i?g.lineTo(X(h.t),y):g.moveTo(X(h.t),y);}); g.stroke();
+  // truth (thin molten)
+  g.strokeStyle="rgba(255,106,52,.85)"; g.lineWidth=1.1; g.beginPath();
+  pts.forEach((h,i)=>{const y=YT(h.Ttrue); i?g.lineTo(X(h.t),y):g.moveTo(X(h.t),y);}); g.stroke();
+  // dips
+  g.fillStyle="#ffd166";
+  hist.filter(h=>h.meas!==undefined).forEach(h=>{g.beginPath();g.arc(X(h.t),YT(h.meas),3.4,0,7);g.fill();});
+  // aim line
+  g.setLineDash([5,4]); g.strokeStyle="#33d17a"; g.beginPath();
+  g.moveTo(pad.l,YT(CFG.TtapC)); g.lineTo(W-pad.r,YT(CFG.TtapC)); g.stroke(); g.setLineDash([]);
+  g.fillStyle="#7c8994";
+  g.fillText(LANG?"नीला=अनुमान  नारंगी=वास्तविक  बिंदु=माप  हरा=लक्ष्य":"blue=estimate  orange=plant  dots=dips  green=aim", pad.l, H-7);
+}
+
+/* ── charge-mix LP: compact two-phase simplex ─────────────────────── */
+/* min c'x  s.t.  A_eq x = b_eq,  A_ub x <= b_ub,  0 <= x <= ub        */
+function simplex(c,Aub,bub,Aeq,beq,ub){
+  // bounds as rows; assemble standard form with slacks + artificials
+  const n=c.length;
+  const rows=[],rhs=[],kind=[];              // kind: 0 = "<=", 1 = "="
+  Aub.forEach((r,i)=>{rows.push(r.slice());rhs.push(bub[i]);kind.push(0);});
+  ub.forEach((u,j)=>{ if(isFinite(u)){const r=new Array(n).fill(0);r[j]=1;rows.push(r);rhs.push(u);kind.push(0);} });
+  Aeq.forEach((r,i)=>{rows.push(r.slice());rhs.push(beq[i]);kind.push(1);});
+  const m=rows.length;
+  const nS=kind.filter(k=>k===0).length;
+  const nA=m;                                 // artificial for every row (simple & safe)
+  const N=n+nS+nA;
+  const Tb=rows.map(r=>new Array(N).fill(0));
+  let si=0;
+  const basis=new Array(m);
+  for(let i=0;i<m;i++){
+    for(let j=0;j<n;j++) Tb[i][j]=rows[i][j];
+    if(rhs[i]<0){ for(let j=0;j<n;j++) Tb[i][j]*=-1; rhs[i]*=-1; if(kind[i]===0){/* >= now */ kind[i]=2;} }
+    if(kind[i]===0){ Tb[i][n+si]=1; si++; }
+    else if(kind[i]===2){ Tb[i][n+si]=-1; si++; }
+    Tb[i][n+nS+i]=1; basis[i]=n+nS+i;
+  }
+  const solve=(cost)=>{
+    for(let iter=0;iter<500;iter++){
+      const z=new Array(N).fill(0);
+      for(let i=0;i<m;i++) for(let j=0;j<N;j++) z[j]+=cost[basis[i]]*Tb[i][j];
+      let piv=-1,best=-1e-9;
+      for(let j=0;j<N;j++){ const r=cost[j]-z[j]; if(r<best){best=r;piv=j;} }
+      if(piv<0) return true;
+      let ro=-1,minr=Infinity;
+      for(let i=0;i<m;i++) if(Tb[i][piv]>1e-9){ const q=rhs[i]/Tb[i][piv]; if(q<minr-1e-12){minr=q;ro=i;} }
+      if(ro<0) return false;                   // unbounded
+      const pv=Tb[ro][piv];
+      for(let j=0;j<N;j++) Tb[ro][j]/=pv; rhs[ro]/=pv;
+      for(let i=0;i<m;i++) if(i!==ro && Math.abs(Tb[i][piv])>1e-12){
+        const f=Tb[i][piv];
+        for(let j=0;j<N;j++) Tb[i][j]-=f*Tb[ro][j];
+        rhs[i]-=f*rhs[ro];
+      }
+      basis[ro]=piv;
+    }
+    return false;
+  };
+  const c1=new Array(N).fill(0); for(let j=n+nS;j<N;j++) c1[j]=1;      // phase 1
+  if(!solve(c1)) return null;
+  let art=0; for(let i=0;i<m;i++) if(basis[i]>=n+nS) art+=rhs[i];
+  if(art>1e-6) return null;                    // infeasible
+  const c2=new Array(N).fill(0); for(let j=0;j<n;j++) c2[j]=c[j];
+  for(let j=n+nS;j<N;j++) c2[j]=1e7;           // keep artificials out
+  if(!solve(c2)) return null;
+  const x=new Array(n).fill(0);
+  for(let i=0;i<m;i++) if(basis[i]<n) x[basis[i]]=rhs[i];
+  return x;
+}
+
+const MATS=[
+  {name:"HMS 80:20", price:33.5, C:.25,Si:.20,Mn:.45,P:.030,S:.035,Cu:.30, y:.94, e:.60, avail:99999},
+  {name:"Shredded",  price:35.5, C:.20,Si:.15,Mn:.40,P:.020,S:.025,Cu:.22, y:.95, e:.58, avail:99999},
+  {name:"Busheling", price:39.0, C:.10,Si:.05,Mn:.35,P:.012,S:.012,Cu:.08, y:.97, e:.55, avail:99999},
+  {name:"CI borings",price:30.0, C:3.2,Si:1.8,Mn:.50,P:.080,S:.060,Cu:.15, y:.90, e:.52, avail:1800},
+  {name:"DRI",       price:31.5, C:1.8,Si:0,  Mn:0,  P:.045,S:.008,Cu:.01, y:.88, e:.75, avail:5000},
+  {name:"Pig iron",  price:42.0, C:4.2,Si:.90,Mn:.40,P:.060,S:.020,Cu:.02, y:.97, e:.50, avail:3000},
+];
+function solveMix(){
+  const g=id=>parseFloat(document.getElementById(id).value)||0;
+  const M=g("mxTarget")*1000;
+  const n=MATS.length;
+  const cost=MATS.map(m=>m.price+CFG.tariff*m.e);
+  const Aeq=[MATS.map(m=>m.y)], beq=[M];
+  const Aub=[],bub=[];
+  const win=(el,lo,hi)=>{
+    Aub.push(MATS.map(m=>m.y*(m[el]/100-hi/100))); bub.push(0);
+    Aub.push(MATS.map(m=>m.y*(lo/100-m[el]/100))); bub.push(0);
+  };
+  win("C",g("mxClo"),g("mxChi")); win("Mn",g("mxMnlo"),g("mxMnhi"));
+  const wall=(el,mx)=>{Aub.push(MATS.map(m=>m.y*(m[el]/100-mx/100)));bub.push(0);};
+  wall("Cu",g("mxCu")); wall("P",g("mxP")); wall("S",g("mxS"));
+  const ub=MATS.map(m=>m.avail);
+  const x=simplex(cost,Aub,bub,Aeq,beq,ub);
+  const out=document.getElementById("mixOut");
+  const body=document.querySelector("#tblMats tbody");
+  if(!x){ out.textContent=(LANG?"असंभव — सीमाएँ ढीली करें":"INFEASIBLE — relax a wall or add a cleaner material"); return; }
+  let cst=0,lines=[];
+  const bath={};["C","Si","Mn","P","S","Cu"].forEach(e=>bath[e]=0);
+  x.forEach((xi,i)=>{ cst+=cost[i]*xi;
+    ["C","Si","Mn","P","S","Cu"].forEach(e=>bath[e]+=MATS[i].y*xi*MATS[i][e]/100);
+    body.rows[i].cells[11].textContent=xi>1?xi.toFixed(0):"—";
+  });
+  for(const e in bath) bath[e]=100*bath[e]/M;
+  let matOnly=0; x.forEach((xi,i)=>matOnly+=MATS[i].price*xi);
+  lines.push((LANG?"सामग्री":"materials")+`  ₹${matOnly.toLocaleString("en-IN",{maximumFractionDigits:0})}  (₹${(matOnly/M*1000).toFixed(0)}/t)`
+    +(LANG?"  |  ऊर्जा सहित":"  |  incl. melting energy @ tariff")
+    +`  ₹${(cst/M*1000).toFixed(0)}/t liquid`);
+  lines.push("bath  "+Object.entries(bath).map(([k,v])=>`${k}=${v.toFixed(3)}%`).join("  "));
+  // shadow price of the Cu wall by re-solve at +0.01
+  const cu2=g("mxCu")+0.01;
+  const Aub2=Aub.map(r=>r.slice()); Aub2[4]=MATS.map(m=>m.y*(m.Cu/100-cu2/100));
+  const x2=simplex(cost,Aub2,bub,Aeq,beq,ub);
+  if(x2){ let c2=0; x2.forEach((xi,i)=>c2+=cost[i]*xi);
+    const sp=(cst-c2)/M*1000;
+    if(sp>0.5) lines.push((LANG?"Cu दीवार बाध्यकारी — छूट का मूल्य":"Cu wall BINDING — relaxing by 0.01 % is worth")+` ₹${sp.toFixed(0)}/t`);
+    else lines.push(LANG?"Cu दीवार बाध्यकारी नहीं":"Cu wall not binding at this price set");
+  }
+  out.textContent=lines.join("\n");
+}
+function renderMats(){
+  const body=document.querySelector("#tblMats tbody"); body.innerHTML="";
+  MATS.forEach(m=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${m.name}</td><td><input value="${m.price}"></td>
+      <td>${m.C}</td><td>${m.Si}</td><td>${m.Mn}</td><td>${m.P}</td><td>${m.S}</td>
+      <td><input value="${m.Cu}" style="width:52px"></td><td>${m.y}</td><td>${m.e}</td>
+      <td><input value="${m.avail}" style="width:64px"></td><td>—</td>`;
+    tr.cells[1].firstChild.addEventListener("change",e=>m.price=parseFloat(e.target.value)||m.price);
+    tr.cells[7].firstChild.addEventListener("change",e=>m.Cu=parseFloat(e.target.value)||m.Cu);
+    tr.cells[10].firstChild.addEventListener("change",e=>m.avail=parseFloat(e.target.value)||m.avail);
+    body.appendChild(tr);
+  });
+}
+
+/* ── heat log ─────────────────────────────────────────────────────── */
+function tapHeat(){
+  if(tapped||truth.Ml<500) return;
+  tapped=true;
+  const Ttap=truth.Tb-K, C=truth.el.C*100, t=(truth.Ml)/1000, sec=truth.E/Math.max(t,0.1);
+  const undis=truth.pool.reduce((a,q)=>a+q.m,0);
+  const avgP=heatStats.Pkwh_den?heatStats.Pkwh_num/heatStats.Pkwh_den:0;
+  const row={n:1000+heatNo, time:new Date().toLocaleTimeString(), Ttap, aimT:CFG.TtapC,
+    C, aimC:CFG.aimC, Si:truth.el.Si*100, Mn:truth.el.Mn*100, Sx:truth.el.S*100,
+    tapT_t:t, E:truth.E, sec, avgP, addsKg:heatStats.addsKg,
+    adds:heatStats.adds.join("; ")||"—", undis, dips:heatStats.dips, min:truth.t/60,
+    hitT:Math.abs(Ttap-CFG.TtapC)<=15, hitC:C>=CFG.aimClo&&C<=CFG.aimChi};
+  LOG.unshift(row); renderLog(); toast(T("logged"));
+  logEvent(T("evTap"),
+    `T ${Ttap.toFixed(0)} °C (aim ${CFG.TtapC}) · C ${C.toFixed(3)} / Si ${(truth.el.Si*100).toFixed(3)} / `
+    +`Mn ${(truth.el.Mn*100).toFixed(3)} / S ${(truth.el.S*100).toFixed(4)} % · ${t.toFixed(2)} t liquid · `
+    +`${truth.E.toFixed(0)} kWh (${sec.toFixed(0)} kWh/t, avg ${avgP.toFixed(0)} kW) · `
+    +`additions ${heatStats.addsKg} kg (${heatStats.adds.join(", ")||"none"}) · undissolved ${undis.toFixed(1)} kg · `
+    +`${heatStats.dips} dips · ${(truth.t/60).toFixed(0)} min power-on`);
+  store.set("smartmelt_log", LOG.slice(0,200));
+}
+function renderLog(){
+  const b=document.querySelector("#tblLog tbody"); b.innerHTML="";
+  LOG.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.title=r.adds||"";
+    tr.innerHTML=`<td>H-${r.n}</td><td>${r.time}</td><td>${r.Ttap.toFixed(0)}</td>
+      <td class="${r.hitT?'hit':'miss'}">${(r.Ttap-r.aimT).toFixed(0)}</td>
+      <td>${r.C.toFixed(3)}</td><td class="${r.hitC?'hit':'miss'}">${(r.C-r.aimC).toFixed(3)}</td>
+      <td>${(r.Si??0).toFixed(3)}</td><td>${(r.Mn??0).toFixed(3)}</td><td>${(r.Sx??0).toFixed(4)}</td>
+      <td>${(r.tapT_t??0).toFixed(2)}</td><td>${(r.E??0).toFixed(0)}</td><td>${r.sec.toFixed(0)}</td>
+      <td>${(r.avgP??0).toFixed(0)}</td><td>${(r.addsKg??0)}</td><td>${(r.undis??0).toFixed(1)}</td>
+      <td>${r.dips??0}</td><td>${r.min.toFixed(0)}</td>
+      <td class="${r.hitT&&r.hitC?'hit':'miss'}">${r.hitT&&r.hitC?"HIT":"MISS"}</td>`;
+    b.appendChild(tr);
+  });
+}
+function renderEvents(){
+  const b=document.querySelector("#tblEvt tbody"); if(!b) return;
+  b.innerHTML="";
+  EVENTS.slice(0,120).forEach(e=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${e.heat}</td><td>${e.tmin.toFixed(1)}′ · ${e.wall}</td>
+      <td style="text-align:left">${e.type}</td>
+      <td style="text-align:left;white-space:normal;font-family:var(--sans);font-size:12px">${e.detail}</td>`;
+    b.appendChild(tr);
+  });
+}
+function exportCSV(){
+  const head="heat,time,tap_T_C,aim_T_C,dT_C,C_pct,Si_pct,Mn_pct,S_pct,tap_mass_t,energy_kWh,"
+    +"SEC_kWh_t,avg_power_kW,additions_kg,additions_detail,undissolved_kg,dips,minutes,hit_T,hit_C\n";
+  const rows=LOG.map(r=>[`H-${r.n}`,r.time,r.Ttap.toFixed(1),r.aimT,(r.Ttap-r.aimT).toFixed(1),
+    r.C.toFixed(3),(r.Si??0).toFixed(3),(r.Mn??0).toFixed(3),(r.Sx??0).toFixed(4),
+    (r.tapT_t??0).toFixed(2),(r.E??0).toFixed(0),r.sec.toFixed(0),(r.avgP??0).toFixed(0),
+    r.addsKg??0,'"'+(r.adds||"")+'"',(r.undis??0).toFixed(1),r.dips??0,
+    r.min.toFixed(0),r.hitT,r.hitC].join(",")).join("\n");
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(head+rows);
+  a.download="smartmelt_heatlog.csv"; a.click();
+}
+function exportEvents(){
+  const head="heat,heat_min,wall_time,event,detail\n";
+  const rows=EVENTS.slice().reverse().map(e=>
+    [e.heat,e.tmin.toFixed(2),e.wall,e.type,'"'+e.detail.replace(/"/g,"'")+'"'].join(",")).join("\n");
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(head+rows);
+  a.download="smartmelt_eventlog.csv"; a.click();
+}
+
+/* ── settings ─────────────────────────────────────────────────────── */
+const SET_FIELDS=[["plantName","Plant / प्लांट"],["heatKg","Heat size kg"],["ratedKW","Rated power kW"],
+  ["TtapC","Tap aim °C"],["aimClo","C aim lo %"],["aimChi","C aim hi %"],["TliqC","Liquidus °C"],
+  ["D","Crucible D m"],["Hbath","Bath height m"],["lid","Lid coverage 0–1"],
+  ["tariff","Tariff ₹/kWh"],["baselineSEC","Baseline SEC kWh/t"],
+  ["airIngress","Air ingress Nm³/t·h"],["sigmaDip","Dip σ °C"]];
+function renderSettings(){
+  const g=document.getElementById("setGrid"); g.innerHTML="";
+  SET_FIELDS.forEach(([k,lab])=>{
+    const d=document.createElement("label"); d.className="set";
+    d.innerHTML=`<span>${lab}</span><input id="set_${k}" value="${CFG[k]}">`;
+    g.appendChild(d);
+  });
+}
+async function saveSettings(){
+  SET_FIELDS.forEach(([k])=>{
+    const v=document.getElementById("set_"+k).value;
+    CFG[k]= (typeof DEFAULT_CFG[k]==="number") ? (parseFloat(v)||DEFAULT_CFG[k]) : v;
+  });
+  document.getElementById("hcPlant").innerHTML="<b>"+CFG.plantName+"</b>";
+  const ok=await store.set("smartmelt_cfg", CFG);
+  toast(ok?T("saved"):T("memOnly"));
+}
+
+/* ── chart engine: crisp (device-pixel-ratio) with grid, ticks, legend ── */
+function fitCanvas(cv){
+  const r=(window.devicePixelRatio||1);
+  const w=cv.clientWidth||900, h=parseInt(cv.dataset.h||cv.clientHeight||240);
+  if(cv._w!==w*r||cv._h!==h*r){cv.width=Math.round(w*r);cv.height=Math.round(h*r);cv._w=w*r;cv._h=h*r;}
+  const g=cv.getContext("2d"); g.setTransform(r,0,0,r,0,0); g.clearRect(0,0,w,h);
+  return {g,W:w,H:h};
+}
+function niceMax(v){ if(v<=0) return 1;
+  const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p;
+  return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
+/* spec: {yL:{max,label,ticks?}, yR:{max,label}?, series:[{key,color,label,axis,dash,width,area,scale}],
+         band:{lo,hi,axis}?, hline:{v,axis,color,label}?, dots:{key,axis,color}?} */
+function drawChart(cvId, spec){
+  const cv=document.getElementById(cvId); if(!cv) return;
+  const {g,W,H}=fitCanvas(cv);
+  const pts=hist.filter(h=>h.Test!==undefined); if(pts.length<2) return;
+  const pad={l:52,r:spec.yR?52:14,t:26,b:26};
+  const tmax=Math.max(pts[pts.length-1].t,10);
+  const X=t=>pad.l+(W-pad.l-pad.r)*t/tmax;
+  const mk=ax=>v=>pad.t+(H-pad.t-pad.b)*(1-Math.min(Math.max(v/ax.max,0),1.02));
+  const YL=mk(spec.yL), YR=spec.yR?mk(spec.yR):null;
+  g.font="12px 'IBM Plex Mono',monospace"; g.lineWidth=1;
+  // grid + left ticks
+  const nT=spec.yL.ticks||4;
+  for(let i=0;i<=nT;i++){ const v=spec.yL.max*i/nT, y=YL(v);
+    g.strokeStyle="#20262c"; g.beginPath(); g.moveTo(pad.l,y); g.lineTo(W-pad.r,y); g.stroke();
+    g.fillStyle="#7c8994"; g.textAlign="right"; g.fillText(fmtTick(v),pad.l-6,y+4); }
+  if(spec.yR){ for(let i=0;i<=nT;i++){ const v=spec.yR.max*i/nT;
+    g.fillStyle="#5b87a0"; g.textAlign="left"; g.fillText(fmtTick(v),W-pad.r+6,YR(v)+4); } }
+  // x ticks every ~15 min
+  const step=tmax>60?20:tmax>30?10:5;
+  g.fillStyle="#7c8994"; g.textAlign="center";
+  for(let t=0;t<=tmax;t+=step){ g.fillText(t+"′",X(t),H-8); }
+  // aim band (e.g. carbon window)
+  if(spec.band){ const Y=spec.band.axis==="R"?YR:YL;
+    g.fillStyle="rgba(255,209,102,.09)";
+    g.fillRect(pad.l,Y(spec.band.hi),W-pad.l-pad.r,Y(spec.band.lo)-Y(spec.band.hi)); }
+  // reference hline
+  if(spec.hline){ const Y=spec.hline.axis==="R"?YR:YL;
+    g.strokeStyle=spec.hline.color||"#33d17a"; g.setLineDash([5,4]);
+    g.beginPath(); g.moveTo(pad.l,Y(spec.hline.v)); g.lineTo(W-pad.r,Y(spec.hline.v)); g.stroke();
+    g.setLineDash([]);
+    if(spec.hline.label){ g.fillStyle=spec.hline.color||"#33d17a"; g.textAlign="left";
+      g.fillText(spec.hline.label,pad.l+4,Y(spec.hline.v)-5); } }
+  // series
+  for(const sr of spec.series){
+    const Y=sr.axis==="R"?YR:YL, sc=sr.scale||1;
+    if(sr.area){ g.beginPath(); g.moveTo(X(pts[0].t),Y(0));
+      pts.forEach(h=>g.lineTo(X(h.t),Y((h[sr.key]||0)*sc)));
+      g.lineTo(X(pts[pts.length-1].t),Y(0)); g.closePath();
+      g.fillStyle=sr.area; g.fill(); }
+    g.strokeStyle=sr.color; g.lineWidth=sr.width||1.8;
+    if(sr.dash) g.setLineDash(sr.dash);
+    g.beginPath();
+    pts.forEach((h,i)=>{ const y=Y((h[sr.key]||0)*sc);
+      i?g.lineTo(X(h.t),y):g.moveTo(X(h.t),y); });
+    g.stroke(); g.setLineDash([]);
+  }
+  // dip dots
+  if(spec.dots){ const Y=spec.dots.axis==="R"?YR:YL;
+    g.fillStyle=spec.dots.color||"#ffd166";
+    hist.filter(h=>h[spec.dots.key]!==undefined).forEach(h=>{
+      g.beginPath(); g.arc(X(h.t),Y(h[spec.dots.key]),3.6,0,7); g.fill(); }); }
+  // legend row (top)
+  g.textAlign="left"; let lx=pad.l;
+  for(const sr of spec.series){
+    g.fillStyle=sr.color; g.fillRect(lx,10,14,3.5);
+    g.fillStyle="#c6ccd4"; g.fillText(sr.label,lx+18,15);
+    lx+=18+g.measureText(sr.label).width+16;
+  }
+  // axis captions
+  g.fillStyle="#7c8994"; g.textAlign="left";
+  g.fillText(spec.yL.label,4,H-8);
+  if(spec.yR){ g.textAlign="right"; g.fillText(spec.yR.label,W-4,H-8); }
+}
+function fmtTick(v){ return v>=1000?(v/1000)+"k":(Math.round(v*100)/100)+""; }
+
+function drawTrajectory(){
+  const Emax=niceMax(Math.max(1000,(hist[hist.length-1]||{}).E||0));
+  drawChart("tjTemp",{yL:{max:1800,label:"°C"},
+    series:[{key:"Test",color:"#4fa8d8",label:LANG?"अनुमान":"bath (est)",width:2},
+            {key:"Ts",color:"#9aa3ad",label:LANG?"ठोस":"solid"},
+            {key:"Thf",color:"#b8860b",label:LANG?"हॉट फेस":"hot face",dash:[3,3]}],
+    hline:{v:CFG.TtapC,axis:"L",color:"#33d17a",label:(LANG?"लक्ष्य ":"tap aim ")+CFG.TtapC},
+    dots:{key:"meas",axis:"L",color:"#ffd166"}});
+  drawChart("tjMetal",{yL:{max:0.6,label:"wt %"},
+    series:[{key:"C",color:"#ffd166",label:"C",width:2},
+            {key:"Si",color:"#4fa8d8",label:"Si"},
+            {key:"Mn",color:"#33d17a",label:"Mn"},
+            {key:"S10",color:"#e5484d",label:"S ×10",dash:[4,3]}],
+    band:{lo:CFG.aimClo,hi:CFG.aimChi,axis:"L"}});
+  drawChart("tjSlag",{yL:{max:niceMax((hist[hist.length-1]||{CaOkg:20}).CaOkg*1.4||30),label:"kg"},
+    yR:{max:2.5,label:"B2"},
+    series:[{key:"FeOkg",color:"#e5484d",label:"FeO kg",width:2},
+            {key:"CaOkg",color:"#4fa8d8",label:"CaO kg"},
+            {key:"SiO2kg",color:"#9aa3ad",label:"SiO₂ kg"},
+            {key:"B2",color:"#33d17a",label:"B2 →",axis:"R",dash:[5,3]}]});
+  drawChart("tjInv",{yL:{max:niceMax(CFG.heatKg/1000*1.05),label:"t"},
+    yR:{max:50,label:"kg"},
+    series:[{key:"Ms_t",color:"#9aa3ad",label:LANG?"ठोस":"solid",area:"rgba(154,163,173,.10)"},
+            {key:"Ml_t",color:"#ff6a34",label:LANG?"द्रव":"liquid",width:2,area:"rgba(255,106,52,.12)"},
+            {key:"undis",color:"#4fa8d8",label:LANG?"अघुलित →":"undissolved →",axis:"R",dash:[4,3]}]});
+  drawChart("tjEner",{yL:{max:Emax,label:"kWh"},yR:{max:800,label:"kWh/t"},
+    series:[{key:"E",color:"#9aa3ad",label:LANG?"ऊर्जा":"energy kWh",width:2},
+            {key:"SEC",color:"#ff6a34",label:"SEC →",axis:"R",width:2}],
+    hline:{v:388,axis:"R",color:"#33d17a",label:(LANG?"सैद्धांतिक तल":"theoretical floor")+" 388"}});
+  drawChart("tjPow",{yL:{max:niceMax(CFG.ratedKW),label:"kW"},
+    series:[{key:"P",color:"#c6ccd4",label:LANG?"ग्रिड पावर":"grid power",width:2},
+            {key:"Qwall",color:"#b8860b",label:LANG?"दीवार":"wall loss"},
+            {key:"Qrad",color:"#e5484d",label:LANG?"विकिरण":"radiation"},
+            {key:"Qchem",color:"#33d17a",label:LANG?"रसायन":"chemistry",dash:[3,3]}]});
+}
+
+/* ── UI glue & main loop ──────────────────────────────────────────── */
+function toast(msg){ const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show"); clearTimeout(t._h);
+  t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+
+function renderTaps(rec){
+  const d=document.getElementById("taps"); d.innerHTML="";
+  CFG.taps.forEach((kw,i)=>{
+    const b=document.createElement("button");
+    b.innerHTML=`TAP ${i}<span class="kw">${kw} kW</span>`;
+    if(i===tapSel) b.classList.add("sel");
+    if(rec!==undefined&&i===rec&&i!==tapSel) b.classList.add("rec");
+    b.addEventListener("click",()=>{ if(i!==tapSel){
+      logEvent(T("evPower"),`TAP ${tapSel} (${CFG.taps[tapSel]} kW) → TAP ${i} (${kw} kW) at `
+        +`${(truth.t/60).toFixed(1)} min, bath ${(truth.Tb-K).toFixed(0)} °C, melted `
+        +`${(100*truth.Ml/Math.max(truth.Ml+truth.Ms,1)).toFixed(0)} %`);
+      heatStats.tapChanges++; }
+      tapSel=i;});
+    d.appendChild(b);
+  });
+}
+let mpcCache=null, mpcAge=0;
+function renderAll(force){
+  const Ttap=CFG.TtapC;
+  const P=CFG.taps[tapSel];
+  const noPool = truth.Ml < 0.02*CFG.heatKg;
+  const tLab=document.querySelector('#pane-operate .kpi.temp .lab span[data-i]');
+  if(tLab){ tLab.dataset.i = noPool ? "noPool" : "bathTlab"; tLab.textContent=T(tLab.dataset.i); }
+  document.getElementById("kT").textContent=(noPool ? est.Ts-K : est.Tb-K).toFixed(0);
+  document.getElementById("kTs").textContent=noPool ? "—" : sigmaT.toFixed(1);
+  document.getElementById("hcSigma").textContent=noPool ? "—" : sigmaT.toFixed(1);
+  document.getElementById("aDip").disabled = noPool;
+  document.getElementById("kC").textContent=(est.el.C*100).toFixed(3);
+  document.getElementById("kP").textContent=tapped?0:P;
+  document.getElementById("kE").textContent=truth.E.toFixed(0);
+  const tt=(truth.Ml+truth.Ms)/1000;
+  document.getElementById("kSEC").textContent=(truth.E/Math.max(tt,0.1)).toFixed(0);
+  // furnace glyph
+  const fl=truth.Ml/CFG.heatKg, fsv=truth.Ms/CFG.heatKg;
+  document.getElementById("fxMelt").style.height=(fl*88).toFixed(1)+"%";
+  document.getElementById("fxScrap").style.height=(fsv*80).toFixed(1)+"%";
+  document.getElementById("fxHot").textContent="hot face "+(truth.Tw[0]-K).toFixed(0)+" °C";
+  document.getElementById("lgSolid").textContent=(truth.Ms/1000).toFixed(2);
+  document.getElementById("lgTs").textContent=(truth.Ts-K).toFixed(0);
+  document.getElementById("lgLiq").textContent=(truth.Ml/1000).toFixed(2);
+  const sl=truth.slag; document.getElementById("lgSlag").textContent=(sl.FeO+sl.CaO+sl.SiO2).toFixed(0);
+  document.getElementById("lgB2").textContent=(sl.CaO/Math.max(sl.SiO2,.1)).toFixed(2);
+  document.getElementById("lgFeO").textContent=(100*sl.FeO/Math.max(sl.FeO+sl.CaO+sl.SiO2,.1)).toFixed(1);
+  document.getElementById("lgPct").textContent=(100*truth.Ml/(truth.Ml+truth.Ms)).toFixed(0);
+  const chips=document.getElementById("dissChips"); chips.innerHTML="";
+  est.pool.forEach(p=>{ const names={0.75:"FeSi"}; const nm=p.into.Si?"FeSi75":p.into.C?"Carburiser":p.slag&&p.slag.FeO?"Mill scale":"Lime";
+    const c=document.createElement("span"); c.className="chip";
+    c.innerHTML=`${nm} <span class="pct">${p.m.toFixed(1)} kg</span>`; chips.appendChild(c); });
+  // clock & state
+  const mm=Math.floor(truth.t/60), ss=Math.floor(truth.t%60);
+  document.getElementById("hcClock").textContent=String(mm).padStart(2,"0")+":"+String(ss).padStart(2,"0");
+  const ready=!tapped && truth.Ms<0.02*CFG.heatKg && truth.Tb-K>=CFG.TtapC-5;
+  const st=document.getElementById("stateTag");
+  st.textContent=tapped?T("done"):speed===0?T("paused"):ready?T("ready"):T("running");
+  st.style.color=ready?"var(--green)":"";
+  st.style.fontWeight=ready?"700":"";
+  // prediction + MPC (refresh every ~5 UI ticks)
+  if(!tapped && (force||!mpcCache||++mpcAge>5)){
+    const pr=project(est, ()=>P, 60);
+    const rec=mpcRecommend();
+    mpcCache={pr,rec}; mpcAge=0;
+    document.getElementById("verdicts").innerHTML=buildVerdicts(pr);
+    renderTaps(rec?(est.Ms<0.02*CFG.heatKg?rec.j:rec.i):undefined);
+    document.getElementById("kTap").textContent=pr.T.toFixed(0)+"°";
+    document.getElementById("kTapSub").textContent="C "+pr.C.toFixed(2)+"% · "+pr.min.toFixed(0)+" "+T("toTap");
+    document.getElementById("mpcNote").textContent = rec
+      ? `${T("recTap")}: TAP ${rec.i} (${CFG.taps[rec.i]} kW) → TAP ${rec.j} `
+        + (LANG?"पिघलने पर":"at meltdown")
+        + ` ⇒ ${rec.p.T.toFixed(0)} °C, ${rec.p.min.toFixed(0)} min, +${rec.p.E.toFixed(0)} kWh`
+        + (rec.p.melted?"":(LANG?" — क्षितिज में पूरा नहीं पिघलेगा":" — will not finish inside the horizon"))
+      : "—";
+  }
+  const db=document.getElementById("driftbar");
+  db.classList.toggle("on",drift);
+  document.getElementById("driftTxt").textContent=drift?T("driftON"):T("driftOK");
+  drawTrend();
+  if(document.getElementById("pane-traj").classList.contains("active")) drawTrajectory();
+}
+
+let acc=0;
+function loop(){
+  if(!tapped && speed>0){
+    const steps=speed;                       // 1 s of sim per step at 1 Hz UI
+    for(let i=0;i<steps;i++){
+      stepSim(truth,CFG,CFG.taps[tapSel],1);
+      stepSim(est,CFG,CFG.taps[tapSel],1);
+    }
+    sigmaT=Math.min(sigmaT+CFG.sigmaGrowth*(speed/60), 35);
+    if(hist.length===0 || truth.t/60-hist[hist.length-1].t>0.25){
+      const sl=truth.slag, slt=Math.max(sl.FeO+sl.CaO+sl.SiO2,0.1);
+      const tt=(truth.Ml+truth.Ms)/1000, d=truth.diag||{};
+      const P=CFG.taps[tapSel];
+      heatStats.Pkwh_num+=P; heatStats.Pkwh_den++;
+      hist.push({t:truth.t/60,Ttrue:truth.Tb-K,Test:est.Tb-K,sig:sigmaT,P,
+                 Ts:truth.Ts-K, Thf:truth.Tw[0]-K,
+                 C:est.el.C*100, Si:est.el.Si*100, Mn:est.el.Mn*100, S10:est.el.S*1000,
+                 melt:100*truth.Ml/Math.max(truth.Ml+truth.Ms,1),
+                 Ml_t:truth.Ml/1000, Ms_t:truth.Ms/1000,
+                 FeO:100*sl.FeO/slt, FeOkg:sl.FeO, CaOkg:sl.CaO, SiO2kg:sl.SiO2,
+                 B2:sl.CaO/Math.max(sl.SiO2,.1),
+                 undis:est.pool.reduce((a,p)=>a+p.m,0),
+                 E:truth.E, SEC:truth.E/Math.max(tt,0.1),
+                 Qwall:d.Qwall||0, Qrad:d.Qrad||0, Qchem:d.Qchem||0});
+    }
+    // demo drift: after 55 min, simulate a Cu-heavy scrap regime arriving
+    if(truth.t>55*60 && !drift){ drift=true;
+      logEvent(T("evDrift"),"PSI on charge Cu — ML heads suspended, physics-only advice, σ widened"); }
+  }
+  renderAll(false);
+}
+
+function wire(){
+  document.getElementById("btnEN").onclick=()=>{LANG=0;applyLang();};
+  document.getElementById("btnHI").onclick=()=>{LANG=1;applyLang();};
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".tabpane").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.getElementById("pane-"+b.dataset.tab).classList.add("active");
+    if(b.dataset.tab==="traj") drawTrajectory();
+  });
+  document.querySelectorAll(".simctl button[data-sp]").forEach(b=>b.onclick=()=>{
+    speed=parseInt(b.dataset.sp);
+    document.querySelectorAll(".simctl button[data-sp]").forEach(x=>x.classList.toggle("sel",x===b));
+  });
+  document.getElementById("aDip").onclick=doDip;
+  document.getElementById("aLime").onclick=()=>addMaterial("lime");
+  document.getElementById("aFeSi").onclick=()=>addMaterial("fesi");
+  document.getElementById("aCarb").onclick=()=>addMaterial("carb");
+  document.getElementById("aOre").onclick=()=>addMaterial("ore");
+  document.getElementById("aTap").onclick=tapHeat;
+  document.getElementById("aNew").onclick=startHeat;
+  document.getElementById("mxSolve").onclick=solveMix;
+  document.getElementById("logCSV").onclick=exportCSV;
+  document.getElementById("evtCSV").onclick=exportEvents;
+  document.getElementById("setSave").onclick=saveSettings;
+  document.getElementById("setReset").onclick=()=>{CFG=JSON.parse(JSON.stringify(DEFAULT_CFG));renderSettings();toast(T("reset"));};
+}
+
+(async function init(){
+  const saved=await store.get("smartmelt_cfg"); if(saved) CFG={...CFG,...saved};
+  const savedLog=await store.get("smartmelt_log"); if(savedLog) LOG.push(...savedLog);
+  document.getElementById("hcPlant").innerHTML="<b>"+CFG.plantName+"</b>";
+  heatNo=41+LOG.length;
+  truth=newState(CFG,true); est=newState(CFG,false);
+  sigmaT=18; lastDipMin=0; biasCorr=0; hist=[]; heatStats=newHeatStats();
+  document.getElementById("hcHeat").textContent="H-"+(1000+heatNo);
+  wire(); renderMats(); renderSettings(); renderLog(); renderEvents(); applyLang();
+  logEvent(T("evCharge"),
+    `${(CFG.heatKg/1000).toFixed(1)} t charge, ${(CFG.heatKg*CFG.heelFrac/1000).toFixed(2)} t hot heel · `
+    +`aim ${CFG.TtapC} °C, C ${CFG.aimClo}-${CFG.aimChi} % · start TAP ${tapSel} (${CFG.taps[tapSel]} kW)`);
+  setInterval(loop, 1000);
+  loop();
+})();
+</script>
+</body>
+</html>

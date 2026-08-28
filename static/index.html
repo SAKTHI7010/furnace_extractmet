@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartMelt Studio — Melt Optimisation (Physics + ML)</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="/static/style.css">
+  
+  <!-- Third Party Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">🔥 SmartMelt <span>Studio</span></div>
+      <div class="header-divider"></div>
+      <div class="hchip" id="hchip-plant">Plant: <b>—</b></div>
+      <div class="hchip" id="hchip-status">Status: <span class="status-indicator status-ok">● ready</span></div>
+      <div class="hchip" id="hchip-meta">engine v0.5.0 · advisory-only</div>
+      <div class="spacer"></div>
+      
+      <div class="plant-select-wrapper">
+        <label for="plant-select">Active Plant:</label>
+        <select id="plant-select" class="control-input">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+      
+      <div class="lang-toggle">
+        <button id="btn-lang-en" class="lang-btn active">EN</button>
+        <button id="btn-lang-hi" class="lang-btn">हिंदी</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="app-tabs" id="tab-nav">
+      <button class="tab-btn active" data-tab="operator-console">
+        <span class="tab-en">Operator Console</span>
+        <span class="tab-hi">संचालन कंसोल</span>
+      </button>
+      <button class="tab-btn" data-tab="process-trajectory">
+        <span class="tab-en">Process Trajectory</span>
+        <span class="tab-hi">प्रक्रिया पथ</span>
+      </button>
+      <button class="tab-btn" data-tab="physics-energy">
+        <span class="tab-en">Physics & Energy</span>
+        <span class="tab-hi">भौतिकी व ऊर्जा</span>
+      </button>
+      <button class="tab-btn" data-tab="virtual-sensor">
+        <span class="tab-en">Virtual Sensor</span>
+        <span class="tab-hi">वर्चुअल सेंसर</span>
+      </button>
+      <button class="tab-btn" data-tab="machine-learning">
+        <span class="tab-en">Machine Learning</span>
+        <span class="tab-hi">मशीन लर्निंग</span>
+      </button>
+      <button class="tab-btn" data-tab="drift-monitor">
+        <span class="tab-en">Drift Monitor</span>
+        <span class="tab-hi">ड्रिफ्ट मॉनिटर</span>
+      </button>
+      <button class="tab-btn" data-tab="charge-mix">
+        <span class="tab-en">Charge-Mix</span>
+        <span class="tab-hi">चार्ज मिश्रण</span>
+      </button>
+      <button class="tab-btn" data-tab="economics">
+        <span class="tab-en">Economics</span>
+        <span class="tab-hi">अर्थशास्त्र</span>
+      </button>
+      <button class="tab-btn" data-tab="heat-log">
+        <span class="tab-en">Heat Log</span>
+        <span class="tab-hi">हीट लॉग</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <span class="tab-en">Settings</span>
+        <span class="tab-hi">सेटिंग्स</span>
+      </button>
+      <button class="tab-btn" data-tab="validation">
+        <span class="tab-en">Validation</span>
+        <span class="tab-hi">सत्यापन</span>
+      </button>
+      <button class="tab-btn" data-tab="about-details">
+        <span class="tab-en">About / Details</span>
+        <span class="tab-hi">के बारे में</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="app-content">
+      
+      <!-- ══ TAB: OPERATOR CONSOLE ══════════════════════════════════════ -->
+      <section class="tab-pane active" id="pane-operator-console">
+        <div class="op-grid">
+          <!-- Left Column (Setup & 3D Furnace) -->
+          <div class="op-left">
+            <div class="glass-card">
+              <h3 class="card-title">Setup & Control</h3>
+              
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="op-charge">Charge Mass (tonnes):</label>
+                  <span id="op-charge-val" class="slider-val">12.0 t</span>
+                </div>
+                <input type="range" id="op-charge" min="4.0" max="14.0" step="0.1" value="12.0" class="slider-input">
+              </div>
+              
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="op-power">Rated Power (kW):</label>
+                  <span id="op-power-val" class="slider-val">5200 kW</span>
+                </div>
+                <input type="range" id="op-power" min="1000" max="8000" step="100" value="5200" class="slider-input">
+              </div>
+              
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="op-carbon">Charge Carbon (%):</label>
+                  <span id="op-carbon-val" class="slider-val">0.30 %</span>
+                </div>
+                <input type="range" id="op-carbon" min="0.05" max="1.5" step="0.01" value="0.30" class="slider-input">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="op-copper">Charge Copper (%):</label>
+                  <span id="op-copper-val" class="slider-val">0.20 %</span>
+                </div>
+                <input type="range" id="op-copper" min="0.05" max="0.5" step="0.01" value="0.20" class="slider-input">
+              </div>
+              
+              <div class="calc-banner" id="op-calc-banner" style="display:none;">
+                <span class="calc-dot"></span>
+                <b id="op-calc-title">Preparing heat trajectory</b>
+                <span id="op-calc-timer">0.0 s</span>
+              </div>
+              
+              <div class="btn-row">
+                <button id="op-btn-start" class="btn btn-primary btn-flex">▶ START HEAT</button>
+                <button id="op-btn-tap" class="btn btn-danger btn-flex" disabled>⏏ TAP HEAT</button>
+              </div>
+              
+              <div class="playback-controls">
+                <span class="playback-label">Speed:</span>
+                <button class="play-speed-btn" data-speed="0">⏸</button>
+                <button class="play-speed-btn" data-speed="1">1×</button>
+                <button class="play-speed-btn active" data-speed="10">10×</button>
+                <button class="play-speed-btn" data-speed="60">60×</button>
+              </div>
+            </div>
+
+            <!-- Material Injection Card -->
+            <div class="glass-card">
+              <h3 class="card-title">Add Material Now</h3>
+              <div class="control-row">
+                <select id="op-material-select" class="control-input flex-grow">
+                  <option value="Lime (92% CaO)">Lime (92% CaO)</option>
+                  <option value="Dolomite">Dolomite</option>
+                  <option value="Fluorspar (CaF2)">Fluorspar (CaF2)</option>
+                  <option value="Bauxite (Al2O3)">Bauxite (Al2O3)</option>
+                  <option value="Mill scale (FeO)">Mill scale (FeO)</option>
+                  <option value="Iron ore (Fe2O3)">Iron ore (Fe2O3)</option>
+                  <option value="FeSi75">FeSi75</option>
+                  <option value="FeSi45">FeSi45</option>
+                  <option value="SiMn">SiMn</option>
+                  <option value="FeMn (HC)">FeMn (HC)</option>
+                  <option value="FeCr (HC)">FeCr (HC)</option>
+                  <option value="Carburiser">Carburiser</option>
+                  <option value="Aluminium (deox)">Aluminium (deox)</option>
+                  <option value="DRI / sponge">DRI / sponge</option>
+                  <option value="Pig iron">Pig iron</option>
+                  <option value="HBI">HBI</option>
+                </select>
+                <input type="number" id="op-material-mass" class="control-input size-kg" min="0" value="48">
+                <span class="unit-label">kg</span>
+                <button id="op-btn-add-material" class="btn btn-secondary" disabled>＋ Add</button>
+              </div>
+              
+              <div class="quick-adds">
+                <button class="btn-quick-add" data-material="Lime (92% CaO)" data-mass="48">Lime (48kg)</button>
+                <button class="btn-quick-add" data-material="FeSi75" data-mass="15">FeSi75 (15kg)</button>
+                <button class="btn-quick-add" data-material="Carburiser" data-mass="12">Carburiser (12kg)</button>
+                <button class="btn-quick-add" data-material="Mill scale (FeO)" data-mass="120">Mill Scale (120kg)</button>
+              </div>
+
+              <!-- Quick Console Log -->
+              <div class="log-box" id="op-log-box">
+                <!-- Log entries added dynamically -->
+              </div>
+            </div>
+
+            <!-- 3D Furnace Card -->
+            <div class="glass-card furnace-card">
+              <h3 class="card-title">3D Coreless Induction Furnace</h3>
+              <div id="furnace-3d-container" class="furnace-canvas-container">
+                <!-- Three.js renders here -->
+                <div class="furnace-overlay-badge" id="furnace-temp-badge">30 °C</div>
+                <div class="furnace-help-text">Drag to rotate | Scroll to zoom</div>
+              </div>
+              <div class="furnace-legend">
+                <span class="legend-chip"><span class="chip-color" style="background:#c8802f"></span>Coils</span>
+                <span class="legend-chip"><span class="chip-color" style="background:#4a3527"></span>Refractory</span>
+                <span class="legend-chip"><span class="chip-color" style="background:#ff6a34"></span>Molten Pool</span>
+                <span class="legend-chip"><span class="chip-color" style="background:#7d6b48"></span>Slag Layer</span>
+                <span class="legend-chip"><span class="chip-color" style="background:#8792a0"></span>Solid Scrap</span>
+                <span class="legend-chip"><span class="chip-color" style="background:#ece6d4"></span>Flux Lumps</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column (KPIs & Charts) -->
+          <div class="op-right">
+            <!-- Clock & Status Bar -->
+            <div class="status-bar-card glass-card">
+              <div class="clock-display" id="op-clock">00:00</div>
+              <div class="status-pill-container">
+                <span class="status-pill status-warn" id="op-status-pill">Press START HEAT</span>
+                <span class="status-pill status-ok" id="op-ledger-pill" style="display:none;">Ledger: --</span>
+                <span class="status-pill status-ok" id="op-closure-pill" style="display:none;">Closure: --</span>
+              </div>
+            </div>
+
+            <!-- KPI Cards Grid -->
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="lab">Bath Temp</div>
+                <div class="val text-molten" id="kpi-bath-temp">—</div>
+                <div class="sub" id="kpi-bath-temp-sub">aim 1620 °C</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Carbon</div>
+                <div class="val" id="kpi-carbon">—</div>
+                <div class="sub" id="kpi-carbon-sub">wt %</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Melted</div>
+                <div class="val" id="kpi-melted">—</div>
+                <div class="sub" id="kpi-melted-sub">0.0 t liq</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">SEC</div>
+                <div class="val" id="kpi-sec">—</div>
+                <div class="sub" id="kpi-sec-sub">0 kWh</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Slag FeO</div>
+                <div class="val" id="kpi-slag-feo">—</div>
+                <div class="sub" id="kpi-slag-feo-sub">wt %</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Basicity B2</div>
+                <div class="val" id="kpi-basicity">—</div>
+                <div class="sub" id="kpi-basicity-sub">CaO / SiO₂</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Silicon</div>
+                <div class="val" id="kpi-silicon">—</div>
+                <div class="sub" id="kpi-silicon-sub">wt %</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Manganese</div>
+                <div class="val" id="kpi-manganese">—</div>
+                <div class="sub" id="kpi-manganese-sub">wt %</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Power</div>
+                <div class="val" id="kpi-power">—</div>
+                <div class="sub" id="kpi-power-sub">kW</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Total Energy</div>
+                <div class="val" id="kpi-energy">—</div>
+                <div class="sub" id="kpi-energy-sub">cumulative kWh</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Expected Tap</div>
+                <div class="val" id="kpi-expected-tap">—</div>
+                <div class="sub" id="kpi-expected-tap-sub">aim 1620 °C</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Actual Bath</div>
+                <div class="val" id="kpi-actual-bath">—</div>
+                <div class="sub" id="kpi-actual-bath-sub">measured</div>
+              </div>
+            </div>
+
+            <!-- Operator Advisory Card -->
+            <div class="glass-card">
+              <h3 class="card-title">Live Advisory Verdicts</h3>
+              <div class="advisory-grid" id="op-advisory-container">
+                <!-- Populated dynamically -->
+                <div class="advisory-placeholder">No active heat simulation. Start heat to receive metallurgical guidance.</div>
+              </div>
+            </div>
+
+            <!-- Live Chart Card -->
+            <div class="glass-card chart-card">
+              <h3 class="card-title">Live Trajectory Trend</h3>
+              <div id="chart-live-trend" class="app-chart"></div>
+            </div>
+            
+            <div class="end-text-container" id="op-end-text" style="display:none;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: PROCESS TRAJECTORY ════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-process-trajectory">
+        <div class="action-header">
+          <div class="action-desc" id="traj-desc">No live data loaded. Showing operator specification defaults.</div>
+          <button id="traj-btn-update" class="btn btn-secondary">↻ Use Operator's Heat</button>
+        </div>
+        
+        <div class="kpi-summary-row" id="traj-kpis">
+          <div class="kpi-card-mini">
+            <div class="lab">Tap Temp</div>
+            <div class="val" id="traj-kpi-temp">—</div>
+            <div class="sub" id="traj-kpi-temp-sub">aim 1620 °C</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">Carbon %</div>
+            <div class="val" id="traj-kpi-carbon">—</div>
+            <div class="sub">final composition</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">Tap Time</div>
+            <div class="val" id="traj-kpi-time">—</div>
+            <div class="sub">minutes elapsed</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">SEC</div>
+            <div class="val" id="traj-kpi-sec">—</div>
+            <div class="sub" id="traj-kpi-sec-sub">floor 381 kWh/t</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">Ledger %</div>
+            <div class="val" id="traj-kpi-ledger">—</div>
+            <div class="sub">worst species audit</div>
+          </div>
+        </div>
+
+        <div class="charts-six-grid">
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-temp" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-inventories" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-chemistry" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-slag" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-heatflows" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-traj-energy" class="app-chart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: PHYSICS & ENERGY ══════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-physics-energy">
+        <div class="action-header">
+          <div class="action-desc" id="phys-desc">No live data loaded. Showing operator specification defaults.</div>
+          <button id="phys-btn-update" class="btn btn-secondary">↻ Use Operator's Heat</button>
+        </div>
+
+        <div class="kpi-summary-row" id="phys-kpis">
+          <div class="kpi-card-mini">
+            <div class="lab">Element Ledger %</div>
+            <div class="val" id="phys-kpi-ledger">—</div>
+            <div class="sub">worst species</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">First-Law Closure %</div>
+            <div class="val" id="phys-kpi-closure">—</div>
+            <div class="sub">energy: in - out</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">Final SEC</div>
+            <div class="val" id="phys-kpi-sec">—</div>
+            <div class="sub" id="phys-kpi-sec-sub">floor 381 kWh/t</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">Useful Fraction %</div>
+            <div class="val" id="phys-kpi-useful">—</div>
+            <div class="sub">efficiency of grid</div>
+          </div>
+        </div>
+
+        <div class="charts-quad-grid">
+          <div class="glass-card grid-chart-card">
+            <div id="chart-phys-heatflows" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-phys-waterfall" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-phys-rates" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-phys-energy" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card" style="grid-column: span 2;">
+            <h3 class="card-title">Energy Audit</h3>
+            <div class="table-container">
+              <table class="app-table" id="phys-audit-table">
+                <thead><tr><th>Component</th><th>Energy (kWh/t)</th></tr></thead>
+                <tbody id="phys-audit-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: VIRTUAL SENSOR ═══════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-virtual-sensor">
+        <div class="kpi-summary-row" style="margin-bottom: 12px; grid-template-columns: 1fr 1fr 1fr 1.5fr;">
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ekf-eta" style="color: #9aa4af; font-size: 11px;">True &eta; electrical</label>
+              <span id="ekf-eta-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.90</span>
+            </div>
+            <input type="range" id="ekf-eta" min="0.80" max="1.0" step="0.01" value="0.90" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ekf-ua" style="color: #9aa4af; font-size: 11px;">True wall-loss scale</label>
+              <span id="ekf-ua-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">1.35</span>
+            </div>
+            <input type="range" id="ekf-ua" min="0.80" max="1.80" step="0.05" value="1.35" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ekf-dips" style="color: #9aa4af; font-size: 11px;">Immersion dips</label>
+              <span id="ekf-dips-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">3</span>
+            </div>
+            <input type="range" id="ekf-dips" min="1" max="6" step="1" value="3" class="slider-input">
+          </div>
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="ekf-btn-run" class="btn btn-secondary" style="width: 100%; height: 100%;">Run live (~1 min)</button>
+          </div>
+        </div>
+        <div class="kpi-summary-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi-card-mini">
+            <div class="lab">FINAL ERROR °C</div>
+            <div class="val" id="ekf-kpi-error" style="color: #ff6a34;">—</div>
+            <div class="sub">est - truth</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">H ELECTRICAL</div>
+            <div class="val" id="ekf-kpi-eta" style="color: #f6ad55;">—</div>
+            <div class="sub">converged</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">&Sigma;_T END °C</div>
+            <div class="val" id="ekf-kpi-sigma" style="color: #f6ad55;">—</div>
+            <div class="sub">uncertainty</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">DIPS USED</div>
+            <div class="val" id="ekf-kpi-dips" style="color: #f6ad55;">—</div>
+            <div class="sub">measurements</div>
+          </div>
+        </div>
+        <div class="sensor-charts-grid" style="grid-template-columns: 1.5fr 1fr; margin-top: 12px;">
+          <div class="glass-card grid-chart-card">
+            <div id="chart-ekf-temp" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-ekf-params" class="app-chart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: MACHINE LEARNING ══════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-machine-learning">
+        <div class="kpi-summary-row" style="margin-bottom: 12px; grid-template-columns: 1fr 1.5fr 1fr 1.5fr;">
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ml-split" style="color: #9aa4af; font-size: 11px;">Train fraction</label>
+              <span id="ml-split-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.70</span>
+            </div>
+            <input type="range" id="ml-split" min="0.50" max="0.85" step="0.01" value="0.70" class="slider-input">
+          </div>
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="ml-btn-train-cached" class="btn btn-secondary" style="width: 100%; height: 100%;">Train on cached data</button>
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ml-nheats" style="color: #9aa4af; font-size: 11px;">Live heats</label>
+              <span id="ml-nheats-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">40</span>
+            </div>
+            <input type="range" id="ml-nheats" min="20" max="80" step="1" value="40" class="slider-input">
+          </div>
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="ml-btn-train-live" class="btn btn-secondary" style="width: 100%; height: 100%;">Generate live (slow)</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 12px; font-size: 11px; color: #9aa4af;">
+            The hybrid model combines the physical model with a Gaussian-process residual head. Physics predicts, ML corrects, and gates itself off until it proves out-of-time improvement.
+            <div class="status-pill status-warn" id="ml-pill-status" style="display: inline-block; margin-left: 8px; font-size: 11px;">maturity: Insufficient &middot; T-ML gated off &middot; C-ML gated off (21 train / 9 test)</div>
+        </div>
+        <div class="kpi-summary-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi-card-mini">
+            <div class="lab">T HIT &plusmn;15°C</div>
+            <div class="val" id="ml-kpi-t-hit" style="color: #f6ad55;">—</div>
+            <div class="sub" id="ml-kpi-t-hit-sub">phys — %</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">T MAE °C</div>
+            <div class="val" id="ml-kpi-t-mae" style="color: #ff6a34;">—</div>
+            <div class="sub">hybrid</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">C HIT &plusmn;0.02%</div>
+            <div class="val" id="ml-kpi-c-hit" style="color: #f6ad55;">—</div>
+            <div class="sub" id="ml-kpi-c-hit-sub">phys — %</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">C MAE %</div>
+            <div class="val" id="ml-kpi-c-mae" style="color: #ff6a34;">—</div>
+            <div class="sub">hybrid</div>
+          </div>
+        </div>
+        <div class="sensor-charts-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+          <div class="glass-card grid-chart-card">
+            <div id="chart-ml-scatter" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-ml-error" class="app-chart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: DRIFT MONITOR ════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-drift-monitor">
+        <div class="kpi-summary-row" style="margin-bottom: 12px; grid-template-columns: 1fr 1fr 1fr 1.5fr;">
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="drift-btn-cached" class="btn btn-secondary" style="width: 100%; height: 100%;">Check cached data</button>
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="drift-nheats" style="color: #9aa4af; font-size: 11px;">Live heats</label>
+              <span id="drift-nheats-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">50</span>
+            </div>
+            <input type="range" id="drift-nheats" min="30" max="80" step="1" value="50" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="drift-regime" style="color: #9aa4af; font-size: 11px;">Regime change at heat</label>
+              <span id="drift-regime-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">40</span>
+            </div>
+            <input type="range" id="drift-regime" min="15" max="60" step="1" value="40" class="slider-input">
+          </div>
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="drift-btn-live" class="btn btn-secondary" style="width: 100%; height: 100%;">Generate live (slow)</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 12px; font-size: 11px; color: #9aa4af;">
+            A pre-computed dataset checks instantly. Live generation runs the same physics simulator and introduces a copper regime change at the selected heat.
+            <div class="status-pill status-bad" id="drift-alarm-pill" style="display: inline-block; margin-left: 8px; font-size: 11px; background: #e5484d33; color: #fc8181; border: 1px solid #fc818155;">DRIFT ALARM &mdash; PSI meas_T_C=0.740</div>
+        </div>
+        <div class="kpi-summary-row" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="kpi-card-mini">
+            <div class="lab">MAX PSI</div>
+            <div class="val" id="drift-kpi-psi" style="color: #ff6a34;">—</div>
+            <div class="sub">>0.25 shift &middot; >0.5 major</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">REFERENCE HEATS</div>
+            <div class="val" id="drift-kpi-ref" style="color: #f6ad55;">—</div>
+            <div class="sub">baseline</div>
+          </div>
+          <div class="kpi-card-mini">
+            <div class="lab">RECENT HEATS</div>
+            <div class="val" id="drift-kpi-recent" style="color: #f6ad55;">—</div>
+            <div class="sub">checked</div>
+          </div>
+        </div>
+        <div class="sensor-charts-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+          <div class="glass-card grid-chart-card">
+            <div id="chart-drift-psi" class="app-chart"></div>
+          </div>
+          <div class="glass-card grid-chart-card">
+            <div id="chart-drift-tracking" class="app-chart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: CHARGE-MIX ═══════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-charge-mix">
+        <div class="kpi-summary-row" style="margin-bottom: 12px; grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1.5fr;">
+          <div class="mode-selection" style="align-self: center; font-size: 11px; margin-right: 12px;">
+            <span style="display: block; color: #9aa4af; margin-bottom: 4px;">Mode:</span>
+            <label class="radio-container" style="margin-bottom: 4px; display: block;">
+              <input type="radio" name="mix-mode" value="optimise" checked>
+              <span class="radio-text">Optimise (least cost)</span>
+            </label>
+            <label class="radio-container" style="display: block;">
+              <input type="radio" name="mix-mode" value="manual">
+              <span class="radio-text">Manual (operator sets kg)</span>
+            </label>
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="mix-target" style="color: #9aa4af; font-size: 11px;">Target liquid (t)</label>
+              <span id="mix-target-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">12.00</span>
+            </div>
+            <input type="range" id="mix-target" min="4.0" max="14.0" step="0.1" value="12.0" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="mix-clo" style="color: #9aa4af; font-size: 11px;">Min C (%)</label>
+              <span id="mix-clo-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.10</span>
+            </div>
+            <input type="range" id="mix-clo" min="0.0" max="0.5" step="0.01" value="0.10" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="mix-chi" style="color: #9aa4af; font-size: 11px;">Max C (%)</label>
+              <span id="mix-chi-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.40</span>
+            </div>
+            <input type="range" id="mix-chi" min="0.1" max="1.0" step="0.01" value="0.40" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="mix-cu" style="color: #9aa4af; font-size: 11px;">Cu ceiling (%)</label>
+              <span id="mix-cu-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.20</span>
+            </div>
+            <input type="range" id="mix-cu" min="0.08" max="0.5" step="0.01" value="0.20" class="slider-input">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="mix-sn" style="color: #9aa4af; font-size: 11px;">Sn ceiling (%)</label>
+              <span id="mix-sn-val" class="slider-val" style="color: #f6ad55; font-size: 13px;">0.10</span>
+            </div>
+            <input type="range" id="mix-sn" min="0.01" max="0.10" step="0.001" value="0.10" class="slider-input">
+          </div>
+          <div class="btn-group" style="align-self: end; height: 32px;">
+            <button id="mix-btn-solve" class="btn btn-secondary" style="width: 100%; height: 100%;">Solve</button>
+          </div>
+        </div>
+        <div class="sensor-charts-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+          <div class="glass-card">
+            <h3 class="card-title" id="mix-table-title" style="font-size: 12px;">Scrap library &mdash; 17 streams (price ₹/kg &middot; assays wt%)</h3>
+            <div class="table-container">
+              <table id="mix-scrap-table" class="app-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>₹/kg</th>
+                    <th>Fe%</th>
+                    <th>Cu%</th>
+                    <th>Sn%</th>
+                    <th>C%</th>
+                    <th id="mix-th-kg" style="display:none;">kg (manual)</th>
+                  </tr>
+                </thead>
+                <tbody id="mix-scrap-tbody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="glass-card">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <h3 class="card-title" style="font-size: 12px; margin-right: 8px; margin-bottom: 0;">Result &mdash; blend, bath chemistry, shadow price</h3>
+              <div class="status-pill status-ok" id="mix-pill-status" style="font-size: 11px;">feasible &mdash; least-cost compliant blend</div>
+            </div>
+            <div class="kpi-summary-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 12px;">
+              <div class="kpi-card-mini">
+                <div class="lab">BLEND COST ₹/T</div>
+                <div class="val" id="mix-kpi-cost" style="color: #f6ad55;">—</div>
+                <div class="sub">of liquid</div>
+              </div>
+              <div class="kpi-card-mini">
+                <div class="lab">CHARGE ENERGY</div>
+                <div class="val" id="mix-kpi-energy" style="color: #ff6a34;">—</div>
+                <div class="sub">kWh</div>
+              </div>
+              <div class="kpi-card-mini">
+                <div class="lab">PREDICTED CU %</div>
+                <div class="val" id="mix-kpi-cu" style="color: #f6ad55;">—</div>
+                <div class="sub" id="mix-kpi-cu-sub">&le;0.20</div>
+              </div>
+              <div class="kpi-card-mini">
+                <div class="lab">PREDICTED C %</div>
+                <div class="val" id="mix-kpi-c" style="color: #f6ad55;">—</div>
+                <div class="sub" id="mix-kpi-c-sub">0.10 - 0.40</div>
+              </div>
+            </div>
+            <div class="table-container" style="height: 180px;">
+              <table class="app-table" id="mix-recipe-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>kg</th>
+                    <th>% of charge</th>
+                  </tr>
+                </thead>
+                <tbody id="mix-recipe-tbody">
+                </tbody>
+              </table>
+            </div>
+            <div class="table-container" style="height: 120px; margin-top: 12px;">
+              <table class="app-table" id="mix-chemistry-table">
+                <thead>
+                  <tr>
+                    <th>Element</th>
+                    <th>wt %</th>
+                  </tr>
+                </thead>
+                <tbody id="mix-chemistry-tbody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: ECONOMICS ════════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-economics">
+        <div class="sensor-top-grid">
+          <div class="glass-card">
+            <h3 class="card-title">Commercial Parameters</h3>
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="eco-output">Annual Production (t/yr):</label>
+                <span id="eco-output-val" class="slider-val">40,000 t</span>
+              </div>
+              <input type="range" id="eco-output" min="5000" max="200000" step="1000" value="40000" class="slider-input">
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="eco-saving">Specific Energy Saving (kWh/t):</label>
+                <span id="eco-saving-val" class="slider-val">40 kWh/t</span>
+              </div>
+              <input type="range" id="eco-saving" min="10" max="100" step="1" value="40" class="slider-input">
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="eco-licence">Licensing Cost (₹ Lakh):</label>
+                <span id="eco-licence-val" class="slider-val">20 Lakh</span>
+              </div>
+              <input type="range" id="eco-licence" min="5" max="40" step="1" value="20" class="slider-input">
+            </div>
+
+            <button id="eco-btn-compute" class="btn btn-primary btn-full-width">Compute Business Case</button>
+            <div class="card-note">Payback and carbon abatement calculations are based on the active plant tariff and grid emission factors.</div>
+          </div>
+
+          <div class="ml-status-panel">
+            <div class="kpi-grid-mini">
+              <div class="kpi-card">
+                <div class="lab">Annual Saving</div>
+                <div class="val text-green" id="eco-kpi-saving">—</div>
+                <div class="sub" id="eco-kpi-saving-sub">at ₹7.0/kWh</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Simple Payback</div>
+                <div class="val" id="eco-kpi-payback">—</div>
+                <div class="sub">months to payback</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">CO₂ Abated</div>
+                <div class="val" id="eco-kpi-co2">—</div>
+                <div class="sub" id="eco-kpi-co2-sub">tCO₂ per year</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">Headroom Left</div>
+                <div class="val" id="eco-kpi-headroom">—</div>
+                <div class="sub" id="eco-kpi-headroom-sub">above floor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="economics-tables-row">
+          <!-- Scenarios Table -->
+          <div class="glass-card flex-col flex-grow">
+            <h3 class="card-title">Production Savings Scenarios (₹ Crore / yr)</h3>
+            <div class="table-container">
+              <table class="app-table" id="eco-scenarios-table">
+                <thead>
+                  <tr>
+                    <th>Annual Output</th>
+                    <th>30 kWh/t saving</th>
+                    <th>50 kWh/t saving</th>
+                    <th>80 kWh/t saving</th>
+                  </tr>
+                </thead>
+                <tbody id="eco-scenarios-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Engine Metrics Table -->
+          <div class="glass-card flex-col flex-grow">
+            <h3 class="card-title">Engine Financial Metrics</h3>
+            <div class="table-container">
+              <table class="app-table" id="eco-detailed-table">
+                <thead>
+                  <tr>
+                    <th>Financial Metric</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="eco-detailed-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: HEAT LOG ══════════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-heat-log">
+        <div class="glass-card flex-col">
+          <div class="card-header-actions">
+            <h3 class="card-title">Heat Log — Session Audit Trail</h3>
+            <div class="btn-row">
+              <button id="log-btn-clear" class="btn btn-secondary">Clear Logs</button>
+              <button id="log-btn-export" class="btn btn-secondary">Export heats CSV</button>
+            </div>
+          </div>
+          <div class="table-container log-table-container">
+            <table class="app-table" id="log-heats-table">
+              <thead>
+                <tr>
+                  <th>Heat No</th>
+                  <th>Clock</th>
+                  <th>Tap Temp (°C)</th>
+                  <th>ΔT</th>
+                  <th>C %</th>
+                  <th>ΔC</th>
+                  <th>Si %</th>
+                  <th>Mn %</th>
+                  <th>S %</th>
+                  <th>Tap mass (t)</th>
+                  <th>SEC (kWh/t)</th>
+                  <th>Avg Power (kW)</th>
+                  <th>Adds (kg)</th>
+                  <th>Dips Count</th>
+                  <th>Duration (min)</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody id="log-heats-tbody">
+                <tr><td colspan="16" class="table-placeholder">No tapped heats recorded this session...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="glass-card flex-col" style="margin-top: 15px;">
+          <h3 class="card-title">Live Action & Advisory Log</h3>
+          <div class="table-container log-table-container">
+            <table class="app-table" id="log-events-table">
+              <thead>
+                <tr>
+                  <th>Heat No</th>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="log-events-tbody">
+                <tr><td colspan="4" class="table-placeholder">No logged events...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: SETTINGS ═════════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-settings">
+        <div class="settings-content-grid">
+          <!-- Form Panel -->
+          <div class="glass-card">
+            <h3 class="card-title">Edit Configuration Aims</h3>
+            <form id="settings-form">
+              <div class="form-group">
+                <label for="set-tap-aim">Tap Temperature Aim (°C):</label>
+                <input type="number" id="set-tap-aim" class="control-input input-block" value="1620">
+              </div>
+              <div class="form-group-row">
+                <div class="form-group flex-grow">
+                  <label for="set-c-lo">Min Carbon Aim (%):</label>
+                  <input type="number" id="set-c-lo" class="control-input input-block" step="0.001" value="0.05">
+                </div>
+                <div class="form-group flex-grow">
+                  <label for="set-c-hi">Max Carbon Aim (%):</label>
+                  <input type="number" id="set-c-hi" class="control-input input-block" step="0.001" value="0.25">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="set-power">Rated Power (kW):</label>
+                <input type="number" id="set-power" class="control-input input-block" value="8000">
+              </div>
+              <div class="form-group">
+                <label for="set-tariff">Electricity Tariff (₹/kWh):</label>
+                <input type="number" id="set-tariff" class="control-input input-block" step="0.1" value="7.0">
+              </div>
+              <div class="form-group">
+                <label for="set-ef">Grid Emission Factor (tCO₂/MWh):</label>
+                <input type="number" id="set-ef" class="control-input input-block" step="0.001" value="0.712">
+              </div>
+              <div class="form-group">
+                <label for="set-baseline">Baseline SEC (kWh/t):</label>
+                <input type="number" id="set-baseline" class="control-input input-block" value="600">
+              </div>
+              <button type="submit" class="btn btn-primary btn-full-width" style="margin-top: 15px;">Apply settings</button>
+            </form>
+          </div>
+
+          <!-- Active Configuration details -->
+          <div class="glass-card flex-col">
+            <h3 class="card-title">Active Configuration Summary</h3>
+            <div class="active-config-badge-row">
+              Active configuration: <code id="settings-active-badge">if_msme_12t</code>
+            </div>
+            <div class="table-container" style="margin-top: 12px;">
+              <table class="app-table" id="settings-summary-table">
+                <thead>
+                  <tr>
+                    <th>Setting</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="settings-summary-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: VALIDATION ═══════════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-validation">
+        <div class="glass-card flex-col">
+          <h3 class="card-title">Parameter Literature Audit (v0.5)</h3>
+          <div class="table-container">
+            <table class="app-table" id="val-audit-table">
+              <thead>
+                <tr>
+                  <th>Quantity</th>
+                  <th>In Model</th>
+                  <th>Literature</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="val-audit-tbody">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="glass-card flex-col" style="margin-top: 15px;">
+          <div class="card-header-actions">
+            <h3 class="card-title">Live Physics Conservation Audit</h3>
+            <button id="val-btn-rerun" class="btn btn-secondary">Re-run Audit</button>
+          </div>
+          
+          <div class="val-pills-row" id="val-pills-container">
+            <!-- Dynamic pills -->
+            <span class="status-pill status-warn">element ledger -- %</span>
+            <span class="status-pill status-warn">first-law -- %</span>
+            <span class="status-pill status-warn">endpoint -- °C</span>
+            <span class="status-pill status-warn">undissolved -- kg</span>
+          </div>
+
+          <div class="validation-chart-container" style="margin-top: 15px; display: flex; gap: 15px;">
+            <div id="chart-val-closure" class="app-chart" style="flex: 1;"></div>
+            <div id="chart-val-elements" class="app-chart" style="flex: 1;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ TAB: ABOUT / DETAILS ══════════════════════════════════════ -->
+      <section class="tab-pane" id="pane-about-details">
+        <div class="glass-card markdown-body">
+          <h2>🔥 SmartMelt Studio Dashboard</h2>
+          <p>SmartMelt Studio is a hybrid physics + machine-learning melt optimization suite for coreless induction furnaces, electric arc furnaces (EAF), and basic oxygen furnaces (BOF). This application replaces Streamlit with a high-fidelity client-side interface featuring real-time 3D Three.js furnace simulation and responsive interactive charting.</p>
+          <p>No physics calculations are duplicated: every API call hits the validated Python <code>smartmelt</code> backend, ensuring total numerical agreement with the mathematical models.</p>
+
+          <h3>Active Calculation Modules</h3>
+          <ul class="about-module-list">
+            <li><strong>physics.py</strong> — Mass and energy ledger balances, dissolution kinetics, and implicit refractory heat conduction.</li>
+            <li><strong>thermo.py</strong> — Wagner activities, partitions, thermodynamic energy floors.</li>
+            <li><strong>ekf.py</strong> — Extended Kalman Filter for joint state estimation (efficiency and temperature tracking).</li>
+            <li><strong>ml.py</strong> — Residual Gaussian Processes and XGBoost model headers.</li>
+            <li><strong>chargemix.py</strong> — Least-cost blending optimization utilizing Simplex LP.</li>
+            <li><strong>advisory.py</strong> — Bilingual metallurgical traffic-light advisory verdicts.</li>
+          </ul>
+
+          <h3>Core Physical Parameters (Verified v0.5 Literature Pass)</h3>
+          <ul class="about-param-list">
+            <li><strong>Latent heat of fusion (Fe)</strong>: <code>247 kJ/kg</code> (CRC Handbook 104th ed.)</li>
+            <li><strong>Slag Reduction enthalpy (FeO + C)</strong>: <code>+1.39 MJ/kg FeO</code> (Hess's Law consistent)</li>
+            <li><strong>FeSi75 Heat of solution</strong>: <code>-3,511 kJ/kg alloy</code> (Sigworth & Elliott 1974)</li>
+            <li><strong>Carburiser Heat of solution</strong>: <code>+1,883 kJ/kg C</code> (Graphite dissolution)</li>
+            <li><strong>Grid emission factor</strong>: <code>0.712 tCO₂/MWh</code> (CEA Database v21.0)</li>
+          </ul>
+
+          <div class="about-footer">
+            Engine Version 0.5.0 · Edge-deployable advisory-only system.
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+  
+  <!-- Frontend Scripts -->
+  <script src="/static/charts.js"></script>
+  <script src="/static/three_furnace.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

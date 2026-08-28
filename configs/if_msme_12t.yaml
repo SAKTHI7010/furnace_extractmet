@@ -1,0 +1,183 @@
+plant:
+  name: Industry-X MSME induction furnace
+  client_id: IF_12T
+  furnace_type: IF
+  heat_size_t: 12.0
+  max_charge_t: 14.0
+  heats_per_year: 2500
+  tap_temperature_C: 1620.0
+  target_carbon_pct: 0.2
+  grade: IS 2062 E250
+geometry:
+  D_inner_m: 1.8
+  H_bath_m: 1.5
+  H_freeboard_m: 0.35
+  lid_coverage: 0.85
+  shape: cylinder
+electrical:
+  rated_power_kW: 6000.0
+  eta_converter: 0.94
+  eta_coupling_max: 0.88
+  coupling_fill_ref: 0.35
+  eta_arc_bath: 0.72
+  eta_arc_foamed_bonus: 0.1
+  power_factor: 0.85
+  tap_levels_kW:
+  - 0
+  - 1500
+  - 3000
+  - 4200
+  - 5100
+  - 6000
+thermal:
+  cp_liquid_kJ_kgK: 0.82
+  cp_solid_kJ_kgK: 0.7
+  cp_slag_kJ_kgK: 1.2
+  L_fusion_kJ_kg: 247.0
+  T_solidus_C: 1465.0
+  T_liquidus_C: 1495.0
+  T_ambient_C: 35.0
+  h_solid_liquid_W_m2K: 1500.0
+  q_max_scrap_kW_m2: 350.0
+  A_solid_ref_m2: 14.0
+  emissivity_top: 0.85
+  A_top_m2: -1.0
+  A_wall_m2: -1.0
+lining:
+  n_nodes: 8
+  r_inner_m: 0.9
+  layers:
+  - name: working_silica
+    thickness_m: 0.11
+    k_W_mK: 1.6
+    rho_kg_m3: 2600.0
+    cp_kJ_kgK: 1.05
+    T_limit_C: 1700.0
+  - name: mica_slip
+    thickness_m: 0.004
+    k_W_mK: 0.2
+    rho_kg_m3: 700.0
+    cp_kJ_kgK: 0.9
+    T_limit_C: 900.0
+  - name: coil_grout
+    thickness_m: 0.03
+    k_W_mK: 1.2
+    rho_kg_m3: 2200.0
+    cp_kJ_kgK: 1.0
+    T_limit_C: 1100.0
+  h_inner_W_m2K: 1200.0
+  h_solid_wall_W_m2K: 150.0
+  grading_ratio: 2.2
+  outer_bc: coil
+  h_outer_W_m2K: 900.0
+  T_coolant_C: 45.0
+  shell_emissivity: 0.8
+  h_shell_conv_W_m2K: 12.0
+  wear_fraction: 0.0
+  hot_face_limit_C: 1700.0
+offgas:
+  post_combustion_ratio: 0.05
+  eta_pc_heat_return: 0.35
+  T_offgas_C: 1150.0
+  cp_gas_kJ_kgK: 1.15
+  air_ingress_Nm3_per_t_per_h: 0.6
+kinetics:
+  A_slag_metal_m2: 2.5
+  rho_metal_kg_m3: 7000.0
+  k_C: 0.0006
+  k_Si: 0.0025
+  k_Mn: 0.0015
+  k_P: 0.0003
+  k_S: 0.0002
+  C_critical_pct: 0.3
+  eta_O2_utilisation: 0.9
+  stirring_multiplier: 0.8
+slag:
+  gamma_FeO: 1.4
+  target_basicity_B2: 1.2
+  target_FeO_pct: 4.0
+  initial_slag_kg_per_t: 10.0
+  surplus_O2_to_FeO: 0.6
+  initial_composition:
+    CaO: 0.3
+    SiO2: 0.4
+    FeO: 0.1
+    MgO: 0.08
+    MnO: 0.05
+    Al2O3: 0.07
+    CaS: 0.0
+enthalpy:
+  C_to_CO: 11100.0
+  C_to_CO2: 32800.0
+  Si_to_SiO2: 27750.0
+  Mn_to_MnO: 7000.0
+  Fe_to_FeO: 4170.0
+  P_to_P2O5: 23600.0
+  CO_to_CO2_per_kg_CO: 10110.0
+sensors:
+  has_power_meter: true
+  has_pyrometer: true
+  has_immersion_tc: true
+  has_load_cells: true
+  has_offgas_analyser: false
+  has_sublance: false
+  has_fibre_dts: false
+  sigma_T_pyrometer_C: 12.0
+  sigma_T_immersion_C: 4.0
+  sigma_power_kW: 25.0
+  sigma_offgas_pct: 0.5
+  sample_period_s: 1.0
+ml:
+  min_heats_coldstart: 200
+  min_heats_deployable: 1000
+  min_heats_calibrated: 2000
+  gpr_kernel: matern32
+  gpr_length_scale: 1.0
+  gpr_noise: 0.01
+  gbm_max_iter: 400
+  gbm_learning_rate: 0.05
+  quantiles:
+  - 0.1
+  - 0.5
+  - 0.9
+  psi_alarm: 0.25
+  mape_alarm_pct: 2.0
+advisory:
+  T_tolerance_green_C: 8.0
+  T_tolerance_yellow_C: 20.0
+  C_tolerance_green_pct: 0.01
+  C_tolerance_yellow_pct: 0.025
+  sigma_suspend_multiplier: 2.5
+  language: both
+economics:
+  tariff_INR_per_kWh: 7.0
+  grid_EF_tCO2_per_MWh: 0.712
+  steel_price_INR_per_t: 50000.0
+  capex_INR: 800000.0
+  opex_INR_per_year: 600000.0
+  baseline_SEC_kWh_per_t: 615.0
+  carbon_price_INR_per_tCO2: 500.0
+numerics:
+  dt_s: 2.0
+  integrator: rk4
+  dt_mpc_s: 15.0
+  max_heat_minutes: 120.0
+metal_species:
+- Fe
+- C
+- Si
+- Mn
+- P
+- S
+- Cr
+- Cu
+- Ni
+slag_species:
+- FeO
+- SiO2
+- CaO
+- MgO
+- MnO
+- Al2O3
+- P2O5
+- CaS
