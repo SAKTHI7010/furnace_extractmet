@@ -226,10 +226,21 @@ async def get_status(request: Request):
             "op_frame_i": frame_i,
             "n_frames": n_frames,
             "op_add_log": session["op_add_log"][-5:],
-            # Return only current frame (not all frames) for fast polling
-            "op_frames": frames,   # keep for JS compatibility but compress later
+            # Return only the CURRENT frame as snapshot (NOT the full list).
+            # The full list is fetched once by the JS via /api/operator/frames.
+            "snapshot": cur_frame,
+            "op_frames": None,   # no longer sent per-poll to avoid ~2 MB payload
         }
     return JSONResponse(make_serializable(res))
+
+
+async def operator_frames(request: Request):
+    """Return the complete pre-computed frame list once, so the browser can
+    cache it client-side and advance playback without server round-trips."""
+    async with _LOCK:
+        frames = session.get("op_frames") or []
+    return JSONResponse(make_serializable({"frames": frames, "n_frames": len(frames)}))
+
 
 
 async def operator_start(request: Request):
@@ -1078,6 +1089,7 @@ routes = [
     Route("/api/operator/start", operator_start, methods=["POST"]),
     Route("/api/operator/inject", operator_inject, methods=["POST"]),
     Route("/api/operator/tap", operator_tap, methods=["POST"]),
+    Route("/api/operator/frames", operator_frames, methods=["GET", "POST"]),
     Route("/api/trajectory/run", run_trajectory, methods=["POST"]),
     Route("/api/trajectory/force_run", force_run_trajectory, methods=["POST"]),
     Route("/api/physics/run", run_physics, methods=["POST"]),

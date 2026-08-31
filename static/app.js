@@ -194,6 +194,8 @@
     const copperPct = parseFloat(document.getElementById('op-copper')?.value  || 0.20);
 
     state.chargeParams = { charge_t: chargeT, power_kW: powerKW, carbon_pct: carbonPct, copper_pct: copperPct };
+    state._lastFrameTemp = null;  // reset projected tap temp for new heat
+    state._frameIndex = 0;        // reset frame playback index
 
     // Show calc banner
     showCalcBanner(true, 'Preparing heat trajectory…');
@@ -214,11 +216,31 @@
       if (!state.simJobId) throw new Error('Server returned no success status');
       state.simRunning = true;
       state._totalFrames = data.n_frames || 0;
+      state._allFrames = null; // clear old frames
+
+      // Apply the first frame immediately so the UI doesn't stay blank during fetch
+      if (data.first_frame) {
+        const f = data.first_frame;
+        state.snapshot.bath_temp_C = f.T_bath_C;
+        state.snapshot.carbon_pct = f.pct_C;
+        state.snapshot.melted_pct = f.melted_pct || 0;
+        applySnapshotToUI(state.snapshot);
+      }
 
       setStatusPill('running', 'Running…');
       showCalcBanner(false);
       setButtonsForRunning(true);
       logEvent('HEAT START', `Charge: ${chargeT} t · Power: ${powerKW} kW · C: ${carbonPct}%`);
+
+      // Fetch all pre-computed frames once (so polling never sends large payloads)
+      callApi('/api/operator/frames', {}).then(framesRes => {
+        if (framesRes && framesRes.frames) {
+          state._allFrames = framesRes.frames;
+          state._totalFrames = framesRes.frames.length;
+          state._lastFrameTemp = framesRes.frames[framesRes.frames.length - 1]?.T_bath_C || null;
+        }
+      });
+
       // frames are pre-computed; playback is driven by frame index
       startPolling();
 
@@ -266,12 +288,22 @@
         }
       }
 
-      // Derive snapshot from frames array
-      if (res.op_frames && res.op_frames.length > 0) {
-        const frames = res.op_frames;
+      // ── Advance frame index from locally cached frames (fetched once on heat start)
+      // Prefer client-side frame advancement for smooth playback; fall back to
+      // server-returned op_frames for backward compatibility.
+      const localFrames = state._allFrames;
+      const serverFrames = res.op_frames;
+      const frames = localFrames || serverFrames;
+
+      if (frames && frames.length > 0) {
         // Advance frame index
         state._frameIndex = Math.min((state._frameIndex || 0) + state.speedMultiplier, frames.length - 1);
         const f = frames[state._frameIndex];
+        // Track projected tap temp from the final frame of the pre-computed heat
+        if (!state._lastFrameTemp && frames.length > 0) {
+          state._lastFrameTemp = frames[frames.length - 1].T_bath_C;
+        }
+
         const snap = {
           t_sec: (f.t_min || 0) * 60,
           bath_temp_C: f.T_bath_C,
@@ -282,13 +314,20 @@
           basicity: f.B2,
           melted_pct: f.melted_pct != null ? f.melted_pct : 0,
           melted_t: f.M_liquid_t || (f.m_liquid_kg || 0) / 1000,
-          power_kW: f.Q_useful_kW || 0,
+          // Use configured power kW when Q_useful_kW is NaN/0 (before liquid pool exists)
+          power_kW: (f.Q_useful_kW != null && isFinite(f.Q_useful_kW) && f.Q_useful_kW > 0)
+            ? f.Q_useful_kW
+            : state.chargeParams.power_kW,
           energy_kwh: f.E_kWh || 0,
           sec: f.SEC_kWh_t,
-          expected_tap_C: f.T_bath_C,
-          slag_kg: (f.slag_FeO_kg || 0) + (f.slag_CaO_kg || 0),
+          // Expected tap = final-frame projected temp (endpoint of pre-computed heat)
+          expected_tap_C: state._lastFrameTemp || f.T_bath_C,
+          // Total slag = sum all slag species (matches engine's slag_total_kg)
+          slag_kg: f.slag_total_kg
+            || (f.slag_FeO_kg || 0) + (f.slag_CaO_kg || 0)
+            + (f.slag_SiO2_kg || 0) + (f.slag_MgO_kg || 0) + (f.slag_MnO_kg || 0),
           undissolved_kg: f.undissolved_kg || f.m_undissolved_kg || 0,
-          // raw frame for advisory
+          // raw frame fields for advisory engine
           T_bath_C: f.T_bath_C,
           pct_C: f.pct_C,
           pct_Si: f.pct_Si,
@@ -348,14 +387,24 @@
       }
     }
 
-    // ── 3D furnace
-    ThreeFurnace.update(
-      snap.melted_pct || 0,
-      snap.bath_temp_C || 30,
-      snap.slag_kg || 0,
-      snap.undissolved_kg || 0,
-      state.settings.tap_aim_C
-    );
+    // ── Temperature badge (always update, even if 3D WebGL failed)
+    const badge = document.getElementById('furnace-temp-badge');
+    if (badge && snap.bath_temp_C != null) {
+      badge.textContent = `${snap.bath_temp_C.toFixed(0)} °C`;
+    }
+
+    // ── 3D furnace (guarded — ThreeFurnace may not be initialized if WebGL unavailable)
+    if (typeof ThreeFurnace !== 'undefined') {
+      try {
+        ThreeFurnace.update(
+          snap.melted_pct || 0,
+          snap.bath_temp_C || 30,
+          snap.slag_kg || 0,
+          snap.undissolved_kg || 0,
+          state.settings.tap_aim_C
+        );
+      } catch (e) { /* WebGL context lost or not initialized — badge above still updates */ }
+    }
 
     // ── Live trend chart
     updateLiveTrendChart(snap);
@@ -463,9 +512,11 @@
     state.simRunning = false;
     state.simJobId = null;
     state._frameIndex = 0;
+    state._allFrames = null;       // clear cached frames
+    state._lastFrameTemp = null;   // clear projected tap temp
     if (state.pollTimer) clearInterval(state.pollTimer);
     clearSnapshot();
-    ThreeFurnace.reset();
+    if (typeof ThreeFurnace !== 'undefined') { try { ThreeFurnace.reset(); } catch(e){} }
     clearCharts();
     setStatusPill('idle', 'Press START HEAT');
     showCalcBanner(false);
@@ -1058,10 +1109,17 @@
     const annualSavRs  = annualSavKwh * tariff;
     const annualSavCr  = annualSavRs / 1e7;
     const licenceRs    = licenceLakh * 1e5;
-    const payback      = licenceRs / annualSavRs * 12;
+    const payback      = licenceRs / Math.max(annualSavRs, 1) * 12;
     const co2          = annualSavKwh / 1000 * ef;
     const headroom     = (state.settings.baseline_sec || 600) - 381;
-    return { annual_saving: annualSavCr, payback_months: payback, co2_abated_t: co2, headroom_kwh_t: headroom };
+    // Keys must match what computeEconomics() reads from the server response
+    return {
+      annual_saving_cr: annualSavCr,
+      payback_months:   payback,
+      co2_avoided:      co2,
+      headroom:         headroom,
+      tariff:           tariff
+    };
   }
 
   function renderScenariosTable(baseT, tariff) {
@@ -1441,8 +1499,21 @@
     initLanguageToggle();
     await initPlantSelector();
 
-    // Init Three.js
-    if (typeof ThreeFurnace !== 'undefined') ThreeFurnace.init('furnace-3d-container');
+    // Init Three.js — defer 150 ms so the container has non-zero dimensions
+    // after CSS layout finishes before Three.js grabs clientWidth/clientHeight.
+    setTimeout(() => {
+      if (typeof ThreeFurnace !== 'undefined') {
+        try {
+          ThreeFurnace.init('furnace-3d-container');
+        } catch (e) {
+          console.warn('[SmartMelt] Three.js furnace init failed (WebGL unavailable?):', e.message);
+          const c = document.getElementById('furnace-3d-container');
+          if (c) {
+            c.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:13px;padding:1rem;text-align:center;">3D view unavailable<br>(WebGL not supported in this browser)</div>';
+          }
+        }
+      }
+    }, 150);
 
     // Welcome advisory
     renderAdvisories([{
